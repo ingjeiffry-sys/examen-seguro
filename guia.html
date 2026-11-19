@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="es.css?v=3">
-<script src="es.js?v=4"></script>
+<script src="es.js?v=5"></script>
 <style>
   .guia { max-width: 900px; margin: 0 auto; padding: 28px 16px 80px; }
   .portada { padding: 30px 28px; border-radius: 26px; color: #fff; background: var(--marca); position: relative; overflow: hidden; margin-bottom: 22px; }
@@ -38,7 +38,7 @@
 
   <nav class="indice no-imprimir">
     <a href="#entrar">1. Entrar por primera vez</a><a href="#crear">2. Crear un examen</a><a href="#preguntas">3. Escribir o pegar preguntas</a>
-    <a href="#reglas">4. Elegir las restricciones</a><a href="#aplicar">5. Aplicarlo en el aula</a><a href="#corregir">6. Corregir respuestas cortas</a>
+    <a href="#dinamicas">3b. Preguntas dinámicas</a><a href="#reglas">4. Elegir las restricciones</a><a href="#aplicar">5. Aplicarlo en el aula</a><a href="#corregir">6. Corregir respuestas cortas</a>
     <a href="#resultados">7. Resultados, Excel y PDF</a><a href="#reportes">8. Reportes por curso</a><a href="#banco">9. Banco de exámenes</a>
     <a href="#papel">10. Versión en papel</a><a href="#estudiante">11. Lo que ve el estudiante</a><a href="#coordinacion">12. Coordinación</a><a href="#preguntas-f">13. Preguntas frecuentes</a>
   </nav>
@@ -92,6 +92,46 @@ Respuesta: espacio de memoria que guarda un dato</pre>
     <div class="nota">Sin opciones y con «Respuesta:» se vuelve <b>respuesta corta</b>. Esa respuesta es la <b>respuesta modelo</b>: te sirve de guía, pero la nota de esa pregunta la pones tú (ver <a href="#corregir">Corregir</a>).</div>
   </section>
 
+  <section class="tarjeta" id="dinamicas">
+    <h2>3b. Preguntas dinámicas</h2>
+    <p>Además de selección, verdadero o falso y respuesta corta, hay siete tipos que se califican solos y dan <b>puntos parciales</b> (cada parte bien suma):</p>
+    <table class="tabla">
+      <thead><tr><th>Tipo</th><th>Qué hace el estudiante</th><th>Cómo lo escribes</th></tr></thead>
+      <tbody>
+        <tr><td>Ordenar pasos</td><td>Arrastra los pasos (o usa las flechas) al orden correcto.</td><td>Un paso por línea, en orden.</td></tr>
+        <tr><td>Armar algoritmo</td><td>Ordena líneas de pseudocódigo (se ve como código, con sangría).</td><td>Una línea por renglón, en orden; la sangría con espacios.</td></tr>
+        <tr><td>Diagrama de flujo</td><td>Arma el diagrama con bloques de colores y flechas.</td><td>Un bloque por línea. La forma sale sola: Inicio/Fin, Leer/Escribir, «¿…?» o «Si…» = decisión.</td></tr>
+        <tr><td>Relacionar columnas</td><td>Elige la pareja de cada elemento.</td><td>Una pareja por línea: <code>CPU = Procesa los datos</code></td></tr>
+        <tr><td>Clasificar en grupos</td><td>Arrastra cada elemento a su grupo (o lo toca y toca el grupo).</td><td>Un grupo por línea: <code>Hardware: Teclado, Monitor</code></td></tr>
+        <tr><td>Completar espacios</td><td>Escribe en los espacios en blanco del texto o del código.</td><td>Respuestas entre corchetes dobles: <code>se usa [[Escribir|Mostrar]]</code></td></tr>
+        <tr><td>Respuesta numérica</td><td>Escribe un número.</td><td>La respuesta y un margen (±) opcional.</td></tr>
+      </tbody>
+    </table>
+    <h3>Pegarlas de un golpe</h3>
+<pre>Tipo: algoritmo
+Arma el algoritmo que muestra el mayor
+Inicio
+Leer A, B
+Si A > B entonces
+    Escribir A
+Sino
+    Escribir B
+FinSi
+Fin
+
+Tipo: relacionar
+Relaciona cada parte con su función
+CPU = Procesa los datos
+RAM = Memoria temporal
+
+Para mostrar datos se usa [[Escribir]] y para pedirlos [[Leer]].
+
+Tipo: numérica
+¿Cuánto es 7 / 2?
+Respuesta: 3.5
+Tolerancia: 0.01</pre>
+    <div class="nota">Al estudiante siempre le salen desordenados. En la versión en papel salen como «numera del 1 al N», columnas con letras o espacios en blanco, con su clave.</div>
+  </section>
   <section class="tarjeta" id="reglas">
     <h2>4. Elegir las restricciones</h2>
     <p>En el paso <b>Restricciones</b> usa un atajo o enciende y apaga cada regla:</p>

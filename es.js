@@ -91,5 +91,5 @@
 })();
 
 /* Versión visible de la plataforma: llena los elementos [data-version]. */
-window.ES_VERSION = '2.2';
+window.ES_VERSION = '2.3';
 document.addEventListener('DOMContentLoaded', function () { document.querySelectorAll('[data-version]').forEach(function (e) { e.textContent = 'v' + window.ES_VERSION; }); });

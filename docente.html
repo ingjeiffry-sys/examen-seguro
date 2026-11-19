@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="es.css?v=3">
 <script src="config.js?v=2"></script>
-<script src="es.js?v=4"></script>
+<script src="es.js?v=5"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   /* Acceso */
@@ -276,12 +276,19 @@
       cab(); y += 4; linea('Nombre: _____________________________________   Fecha: ___________   Nota: ______', 10.5); y += 6;
       if (x.instrucciones) linea(x.instrucciones, 10, false, 70);
       preguntas.forEach(function (q, i) {
-        y += 8; linea((i + 1) + '. ' + q.enunciado + '   (' + (q.puntos || 1) + ' pt)', 11, true);
+        y += 8; linea((i + 1) + '. ' + String(q.enunciado).replace(/\[\[(.+?)\]\]/g, '______________') + '   (' + (q.puntos || 1) + ' pt)', 11, true);
+        var mezcla = function (a) { a = a.slice(); for (var z = a.length - 1; z > 0; z--) { var w = Math.floor(Math.random() * (z + 1)), tmp = a[z]; a[z] = a[w]; a[w] = tmp; } return a; };
         if (q.tipo === 'CORTA') for (var k = 0; k < 3; k++) linea('_____________________________________________________________________________', 10, false, 160);
-        else q.opciones.forEach(function (o, j) { linea('      ' + String.fromCharCode(97 + j) + ')  ' + o, 10.5); });
+        else if (ORDEN_ED.indexOf(q.tipo) >= 0) { linea('      Numera del 1 al ' + q.opciones.length + ' en el orden correcto:', 10, false, 90); mezcla(q.opciones).forEach(function (o) { linea('      (     )  ' + o, 10.5); }); }
+        else if (q.tipo === 'RELACIONAR') { var pr = q.opciones.map(function (s) { return s.split(' => '); }), der = mezcla(pr.map(function (p) { return p[1]; }));
+          linea('      Escribe en cada número la letra que le corresponde:', 10, false, 90); pr.forEach(function (p, j) { linea('      ' + (j + 1) + '. ' + p[0] + '   ( ___ )', 10.5); }); der.forEach(function (o, j) { linea('      ' + String.fromCharCode(97 + j) + ') ' + o, 10.5); }); }
+        else if (q.tipo === 'CLASIFICAR') { var gr = []; q.opciones.forEach(function (s) { var c = s.split(' => ')[0]; if (gr.indexOf(c) < 0) gr.push(c); });
+          linea('      Grupos: ' + gr.join(' · ') + '. Escribe el grupo de cada elemento:', 10, false, 90); mezcla(q.opciones.map(function (s) { return s.split(' => ')[1]; })).forEach(function (o) { linea('      ' + o + ':  ____________________', 10.5); }); }
+        else if (q.tipo === 'NUMERICA') linea('      Respuesta: ______________', 10.5);
+        else if (q.tipo !== 'COMPLETAR') q.opciones.forEach(function (o, j) { linea('      ' + String.fromCharCode(97 + j) + ')  ' + o, 10.5); });
       });
       doc.addPage(); y = 50; cab(); y += 6; linea('CLAVE DE RESPUESTAS (solo para el docente)', 12, true);
-      preguntas.forEach(function (q, i) { var j = q.opciones.indexOf(q.correcta); linea((i + 1) + '.  ' + (q.tipo !== 'CORTA' && j >= 0 ? String.fromCharCode(97 + j) + ')  ' : '') + String(q.correcta).split('|').join(' / '), 10.5); });
+      preguntas.forEach(function (q, i) { var j = (q.tipo === 'MC' || q.tipo === 'VF') ? q.opciones.indexOf(q.correcta) : -1; linea((i + 1) + '.  ' + (j >= 0 ? String.fromCharCode(97 + j) + ')  ' : '') + (q.tipo === 'CORTA' ? String(q.correcta).split('|').join(' / ') : claveTexto(q).replace(/\n/g, '   ')), 10.5); });
       doc.save(archivo('Examen en papel ' + x.titulo) + '.pdf');
     }).catch(function (e) { AVISO(e.message, 'error'); });
   }
@@ -446,12 +453,55 @@
     };
   }
 
+  /* Tipos de pregunta */
+  var TIPOS_ED = { MC: 'Selección múltiple', VF: 'Verdadero o falso', CORTA: 'Respuesta corta', ORDENAR: 'Ordenar pasos', ALGORITMO: 'Armar algoritmo (pseudocódigo)', FLUJO: 'Diagrama de flujo',
+    RELACIONAR: 'Relacionar columnas', CLASIFICAR: 'Clasificar en grupos', COMPLETAR: 'Completar espacios', NUMERICA: 'Respuesta numérica' };
+  var DINAMICAS = [['ORDENAR', 'Ordenar', 'barajar'], ['ALGORITMO', 'Algoritmo', 'lista'], ['FLUJO', 'Diagrama de flujo', 'grafica'], ['RELACIONAR', 'Relacionar', 'enlace'], ['CLASIFICAR', 'Clasificar', 'banco'], ['COMPLETAR', 'Completar', 'editar'], ['NUMERICA', 'Numérica', 'check']];
+  var ORDEN_ED = ['ORDENAR', 'ALGORITMO', 'FLUJO'], AUTO = ORDEN_ED.concat(['RELACIONAR', 'CLASIFICAR', 'COMPLETAR']);
+  var AYUDA_ED = { ORDENAR: 'Un paso por línea, en el orden correcto (al estudiante le salen desordenados)', ALGORITMO: 'Una línea de pseudocódigo por renglón, en orden. Respeta la sangría con espacios',
+    FLUJO: 'Un bloque por línea, de arriba hacia abajo. La forma sale sola: Inicio/Fin = óvalo; Leer/Escribir = entrada/salida; con «?» o «Si…» = decisión; lo demás = proceso',
+    RELACIONAR: 'Una pareja por línea: izquierda = derecha', CLASIFICAR: 'Un grupo por línea: Grupo: elemento, elemento, elemento',
+    COMPLETAR: 'Escribe el texto en la pregunta y pon cada respuesta entre [[ ]]. Varias respuestas válidas: [[Escribir|Mostrar]]. Si el texto tiene varias líneas se muestra como código.' };
+  var EJEMPLO_ED = { ORDENAR: 'Encender la computadora\nAbrir el navegador\nEscribir la dirección\nPulsar Enter', ALGORITMO: 'Inicio\nLeer A, B\nSi A > B entonces\n    Escribir A\nSino\n    Escribir B\nFinSi\nFin',
+    FLUJO: 'Inicio\nLeer N\n¿N es par?\nEscribir "Par"\nFin', RELACIONAR: 'CPU = Procesa los datos\nRAM = Memoria temporal\nDisco duro = Guarda archivos', CLASIFICAR: 'Hardware: Teclado, Monitor, Mouse\nSoftware: Word, Windows, Chrome' };
+  function lineasDe(x) {
+    var o = x.opciones || [];
+    if (x.tipo === 'RELACIONAR') return o.map(function (s) { return s.replace(' => ', ' = '); }).join('\n');
+    if (x.tipo === 'CLASIFICAR') { var g = {}, ord = []; o.forEach(function (s) { var p = s.split(' => '); if (p.length < 2) return; if (!g[p[0]]) { g[p[0]] = []; ord.push(p[0]); } g[p[0]].push(p[1]); }); return ord.map(function (c) { return c + ': ' + g[c].join(', '); }).join('\n'); }
+    return o.join('\n');
+  }
+  function deLineas(tipo, txt) {
+    var l = String(txt).replace(/\r/g, '').split('\n').map(function (s) { return tipo === 'ALGORITMO' ? s.replace(/\s+$/, '') : s.trim(); }).filter(function (s) { return s.trim(); });
+    if (tipo === 'CLASIFICAR') return [].concat.apply([], l.map(function (s) { var k = s.indexOf(':'); if (k < 1) return [s]; var c = s.slice(0, k).trim(); return s.slice(k + 1).split(',').map(function (x) { return x.trim(); }).filter(Boolean).map(function (x) { return c + ' => ' + x; }); }));
+    return l;
+  }
+  function validarP(q, i) {
+    var n = i + 1, ops = (q.opciones || []).filter(function (o) { return String(o).trim(); });
+    if (!q.enunciado.trim()) return n + ' (sin texto)';
+    if (ORDEN_ED.indexOf(q.tipo) >= 0) return ops.length < 3 ? n + ' (necesita al menos 3 pasos)' : null;
+    if (q.tipo === 'RELACIONAR' || q.tipo === 'CLASIFICAR') return ops.length < 2 ? n + ' (necesita al menos 2 parejas)' : null;
+    if (q.tipo === 'COMPLETAR') return /\[\[.+?\]\]/.test(q.enunciado) ? null : n + ' (marca los espacios con [[respuesta]])';
+    if (q.tipo === 'NUMERICA') return isNaN(Number(String(q.correcta).replace(',', '.'))) || !String(q.correcta).trim() ? n + ' (la respuesta debe ser un número)' : null;
+    if (!String(q.correcta || '').trim()) return n + ' (sin respuesta correcta)';
+    return q.tipo === 'MC' && ops.length < 2 ? n + ' (pocas opciones)' : null;
+  }
+  /** Respuesta correcta en texto (vista previa del banco y clave en papel). */
+  function claveTexto(q) {
+    var o = q.opciones || [];
+    if (ORDEN_ED.indexOf(q.tipo) >= 0) return o.map(function (x, j) { return (j + 1) + '. ' + x; }).join('\n');
+    if (q.tipo === 'RELACIONAR') return o.map(function (s) { return s.replace(' => ', ' → '); }).join('\n');
+    if (q.tipo === 'CLASIFICAR') return lineasDe(q);
+    if (q.tipo === 'COMPLETAR') { var h = []; String(q.enunciado).replace(/\[\[(.+?)\]\]/g, function (m, a) { h.push(a.split('|')[0]); return m; }); return h.join(' · '); }
+    if (q.tipo === 'NUMERICA') return q.correcta + (Number(o[0]) ? ' (± ' + o[0] + ')' : '');
+    return String(q.correcta || '').split('|')[0];
+  }
+
   /* Preguntas */
   function pasoPreguntas() {
     var q = E.preguntas;
     $('edCuerpo').innerHTML = (E.ex.multiBanco ? '<div class="tarjeta" style="margin-bottom:12px"><b>' + ICO('alerta') + ' Este examen usa preguntas de varios bancos.</b><p class="suave" style="margin:4px 0 0">Si guardas aquí, las preguntas se copian a este examen.</p></div>' : '') +
       '<div class="filtros"><button class="btn claro" data-add="MC">' + ICO('mas') + ' Selección múltiple</button><button class="btn claro" data-add="VF">' + ICO('mas') + ' Verdadero o falso</button>' +
-      '<button class="btn claro" data-add="CORTA">' + ICO('mas') + ' Respuesta corta</button><button class="btn primario" id="btnImportar">' + ICO('importar') + ' Pegar preguntas</button>' +
+      '<button class="btn claro" data-add="CORTA">' + ICO('mas') + ' Respuesta corta</button>' + DINAMICAS.map(function (d) { return '<button class="btn claro" data-add="' + d[0] + '">' + ICO(d[2]) + ' ' + d[1] + '</button>'; }).join('') + '<button class="btn primario" id="btnImportar">' + ICO('importar') + ' Pegar preguntas</button>' +
       '<span class="suave pequeno" style="margin-left:auto">' + q.length + ' preguntas · ' + q.reduce(function (a, x) { return a + (Number(x.puntos) || 1); }, 0) + ' puntos</span></div>' +
       (q.length ? q.map(htmlPregunta).join('') : '<div class="tarjeta vacio"><div class="chip-ico">' + ICO('lista') + '</div><h3 style="justify-content:center">Sin preguntas todavía</h3><p>Agrega una a una o usa «Pegar preguntas» para cargar muchas de un golpe.</p></div>');
     var c = $('edCuerpo');
@@ -459,7 +509,7 @@
       var t = e.target.closest('[data-add],[data-del],[data-sube],[data-baja],[data-cor],[data-masop],[data-quitaop],#btnImportar'); if (!t) return;
       if (t.id === 'btnImportar') { leerPreguntas(); importar(); return; }
       leerPreguntas();
-      if (t.dataset.add) { var tp = t.dataset.add; q.push({ tipo: tp, enunciado: '', opciones: tp === 'MC' ? ['', '', '', ''] : tp === 'VF' ? ['Verdadero', 'Falso'] : [], correcta: tp === 'VF' ? 'Verdadero' : '', puntos: 1, explicacion: '', tema: '' }); }
+      if (t.dataset.add) { var tp = t.dataset.add; q.push({ tipo: tp, enunciado: '', opciones: tp === 'MC' ? ['', '', '', ''] : tp === 'VF' ? ['Verdadero', 'Falso'] : [], correcta: tp === 'VF' ? 'Verdadero' : AUTO.indexOf(tp) >= 0 ? 'auto' : '', puntos: 1, explicacion: '', tema: '' }); }
       var i = Number(t.dataset.del || t.dataset.sube || t.dataset.baja || t.dataset.masop || t.dataset.quitaop || (t.dataset.cor || '').split(':')[0]);
       if (t.dataset.del !== undefined) q.splice(i, 1);
       if (t.dataset.sube !== undefined && i > 0) q.splice(i - 1, 0, q.splice(i, 1)[0]);
@@ -471,13 +521,17 @@
       if (t.dataset.add) { var ult = c.querySelectorAll('.preg-ed'); if (ult.length) ult[ult.length - 1].scrollIntoView({ behavior: 'smooth', block: 'center' }); }
     };
     c.onchange = function (e) { if (e.target.dataset.tipo !== undefined) { leerPreguntas(); var i = Number(e.target.dataset.tipo), x = q[i]; x.tipo = e.target.value;
-      if (x.tipo === 'VF') { x.opciones = ['Verdadero', 'Falso']; x.correcta = 'Verdadero'; } else if (x.tipo === 'MC' && x.opciones.length < 2) { x.opciones = ['', '', '', '']; x.correcta = ''; } else if (x.tipo === 'CORTA') { x.opciones = []; }
+      if (x.tipo === 'VF') { x.opciones = ['Verdadero', 'Falso']; x.correcta = 'Verdadero'; } else if (x.tipo === 'MC' && x.opciones.length < 2) { x.opciones = ['', '', '', '']; x.correcta = ''; } else if (x.tipo === 'CORTA') { x.opciones = []; if (x.correcta === 'auto') x.correcta = ''; } else if (TIPOS_ED[x.tipo] && x.tipo !== 'MC' && x.tipo !== 'VF') { x.opciones = []; x.correcta = AUTO.indexOf(x.tipo) >= 0 ? 'auto' : ''; }
       pasoPreguntas(); } };
     $('edEstado').textContent = '';
   }
   function htmlPregunta(x, i) {
     var cuerpo;
     if (x.tipo === 'CORTA') cuerpo = '<label class="campo"><span>Respuestas aceptadas (separa con |)</span><input class="entrada" data-f="correcta" data-i="' + i + '" value="' + esc(x.correcta) + '" placeholder="Ej.: Na|sodio"></label>';
+    else if (AYUDA_ED[x.tipo] && x.tipo !== 'COMPLETAR' && x.tipo !== 'NUMERICA') cuerpo = '<label class="campo"><span>' + AYUDA_ED[x.tipo] + '</span><textarea class="entrada" data-f="lineas" data-i="' + i + '" style="min-height:130px' + (x.tipo === 'ALGORITMO' ? ';font-family:ui-monospace,Consolas,monospace;font-size:13.5px' : '') + '" placeholder="' + esc(EJEMPLO_ED[x.tipo]) + '">' + esc(lineasDe(x)) + '</textarea></label>';
+    else if (x.tipo === 'COMPLETAR') cuerpo = '<p class="pequeno suave" style="margin:6px 0">' + AYUDA_ED.COMPLETAR + '</p>';
+    else if (x.tipo === 'NUMERICA') cuerpo = '<div class="fila"><label class="campo"><span>Respuesta (número)</span><input class="entrada" data-f="correcta" data-i="' + i + '" inputmode="decimal" value="' + esc(x.correcta) + '" placeholder="Ej.: 3.5"></label>' +
+      '<label class="campo"><span>Margen aceptado (±)</span><input class="entrada" data-f="tol" data-i="' + i + '" inputmode="decimal" value="' + esc((x.opciones || [])[0] || '0') + '"></label></div>';
     else cuerpo = '<div><span class="pequeno suave">Marca el círculo de la respuesta correcta</span>' + x.opciones.map(function (o, j) {
       var on = x._cor !== undefined ? x._cor === j : (o && o === x.correcta);
       return '<div class="opcion"><button type="button" class="correcta' + (on ? ' on' : '') + '" data-cor="' + i + ':' + j + '" aria-label="Marcar como correcta">' + ICO('check') + '</button>' +
@@ -485,11 +539,11 @@
         (x.tipo === 'MC' ? '<button type="button" class="btn fantasma icono" data-quitaop="' + i + '" data-op="' + j + '" title="Quitar">' + ICO('x') + '</button>' : '') + '</div>';
     }).join('') + (x.tipo === 'MC' && x.opciones.length < 8 ? '<button type="button" class="btn fantasma mini" data-masop="' + i + '">' + ICO('mas') + ' Opción</button>' : '') + '</div>';
     return '<div class="preg-ed tarjeta"><div class="top"><span class="num">' + (i + 1) + '</span>' +
-      '<select class="entrada mini" data-tipo="' + i + '"><option value="MC"' + (x.tipo === 'MC' ? ' selected' : '') + '>Selección múltiple</option><option value="VF"' + (x.tipo === 'VF' ? ' selected' : '') + '>Verdadero o falso</option><option value="CORTA"' + (x.tipo === 'CORTA' ? ' selected' : '') + '>Respuesta corta</option></select>' +
+      '<select class="entrada mini" data-tipo="' + i + '">' + Object.keys(TIPOS_ED).map(function (k) { return '<option value="' + k + '"' + (x.tipo === k ? ' selected' : '') + '>' + TIPOS_ED[k] + '</option>'; }).join('') + '</select>' +
       '<label class="pequeno suave" style="display:flex;gap:6px;align-items:center">Puntos <input class="entrada mini" type="number" min="0.5" step="0.5" data-f="puntos" data-i="' + i + '" value="' + (x.puntos || 1) + '" style="width:76px"></label>' +
       '<span style="margin-left:auto;display:flex;gap:2px"><button class="btn fantasma icono" data-sube="' + i + '" title="Subir">' + ICO('arriba') + '</button><button class="btn fantasma icono" data-baja="' + i + '" title="Bajar">' + ICO('abajo') + '</button>' +
       '<button class="btn fantasma icono" data-del="' + i + '" title="Borrar" style="color:var(--rojo)">' + ICO('borrar') + '</button></span></div>' +
-      '<textarea class="entrada" data-f="enunciado" data-i="' + i + '" placeholder="Escribe la pregunta" style="min-height:70px">' + esc(x.enunciado) + '</textarea>' + cuerpo +
+      '<textarea class="entrada" data-f="enunciado" data-i="' + i + '" placeholder="' + (x.tipo === 'COMPLETAR' ? 'Ej.: Para mostrar datos se usa [[Escribir]] y para pedirlos [[Leer]].' : 'Escribe la pregunta') + '" style="min-height:70px' + (x.tipo === 'COMPLETAR' ? ';font-family:ui-monospace,Consolas,monospace' : '') + '">' + esc(x.enunciado) + '</textarea>' + cuerpo +
       '<div class="fila" style="margin-top:10px"><input class="entrada" data-f="explicacion" data-i="' + i + '" value="' + esc(x.explicacion || '') + '" placeholder="Explicación (se ve en prácticas, opcional)">' +
       '<input class="entrada" data-f="tema" data-i="' + i + '" value="' + esc(x.tema || '') + '" placeholder="Tema o criterio (opcional)"></div></div>';
   }
@@ -499,12 +553,14 @@
       var x = E.preguntas[Number(el.dataset.i)]; if (!x) return;
       if (el.dataset.f === 'op') { var j = Number(el.dataset.j), viejo = x.opciones[j]; x.opciones[j] = el.value; if (x._cor === j || (x._cor === undefined && viejo && viejo === x.correcta)) { x.correcta = el.value; x._cor = j; } }
       else if (el.dataset.f === 'puntos') x.puntos = Number(el.value) || 1;
+      else if (el.dataset.f === 'lineas') x.opciones = deLineas(x.tipo, el.value);
+      else if (el.dataset.f === 'tol') x.opciones = [el.value.trim() || '0'];
       else x[el.dataset.f] = el.value;
     });
   }
   function importar() {
-    modal('<h2>' + ICO('importar') + ' Pegar preguntas</h2><p class="suave pequeno">Separa cada pregunta con una línea en blanco. Marca la correcta con un asterisco (*). Para V/F escribe «Respuesta: V» o «F». Sin opciones y con «Respuesta:» es respuesta corta.</p>' +
-      '<textarea class="entrada" id="impTxt" style="min-height:260px;font-family:ui-monospace,Consolas,monospace;font-size:13.5px" placeholder="1. ¿Qué instrucción muestra un valor en pantalla?\na) Leer\n*b) Escribir\nc) Definir\nd) Mientras\nExplicación: Escribir muestra datos.\n\n2. El tipo Real guarda decimales.\nRespuesta: V\n\n3. Símbolo químico del sodio\nRespuesta: Na | sodio"></textarea>' +
+    modal('<h2>' + ICO('importar') + ' Pegar preguntas</h2><p class="suave pequeno">Separa cada pregunta con una línea en blanco. Marca la correcta con un asterisco (*). Para V/F escribe «Respuesta: V» o «F». Sin opciones y con «Respuesta:» es respuesta corta. <b>Tipos dinámicos:</b> agrega una línea «Tipo: ordenar / algoritmo / diagrama / relacionar / clasificar / numérica», la pregunta y debajo los elementos en orden; para completar, pon las respuestas entre [[ ]].</p>' +
+      '<textarea class="entrada" id="impTxt" style="min-height:260px;font-family:ui-monospace,Consolas,monospace;font-size:13.5px" placeholder="1. ¿Qué instrucción muestra un valor en pantalla?\na) Leer\n*b) Escribir\nc) Definir\nd) Mientras\nExplicación: Escribir muestra datos.\n\n2. El tipo Real guarda decimales.\nRespuesta: V\n\n3. Símbolo químico del sodio\nRespuesta: Na | sodio\n\nTipo: algoritmo\nArma el algoritmo que muestra el mayor\nInicio\nLeer A, B\nSi A > B entonces\n    Escribir A\nSino\n    Escribir B\nFinSi\nFin\n\nTipo: relacionar\nRelaciona cada parte con su función\nCPU = Procesa los datos\nRAM = Memoria temporal\n\nPara mostrar datos se usa [[Escribir]] y para pedirlos [[Leer]]."></textarea>' +
       '<div id="impVista" class="pequeno suave" style="margin:8px 0"></div><div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn claro" data-cerrar>Cancelar</button><button class="btn primario" id="impOk" disabled>Agregar</button></div>', true);
     var lista = [];
     $('impTxt').oninput = function () { lista = analizar(this.value); var mal = lista.filter(function (q) { return q.error; });
@@ -513,7 +569,9 @@
     $('impOk').onclick = function () { var ok = lista.filter(function (q) { return !q.error; }); ok.forEach(function (q) { delete q.error; E.preguntas.push(q); }); cerrarModal(); AVISO(ok.length + ' preguntas agregadas'); pasoPreguntas(); };
   }
   function analizar(txt) {
-    return txt.replace(/\r/g, '').split(/\n\s*\n/).map(function (b) { return b.trim(); }).filter(Boolean).map(function (b, n) {
+    return txt.replace(/\r/g, '').split(/\n\s*\n/).map(function (b) { return b.replace(/^\s*\n|\s+$/g, ''); }).filter(function (b) { return b.trim(); }).map(function (b, n) {
+      var tm = b.match(/^\s*tipo\s*[:=]\s*([^\n]+)$/im), tp = tm ? tipoDe(tm[1]) : /\[\[.+?\]\]/.test(b) ? 'COMPLETAR' : null;
+      if (tp) return analizarNuevo(b, tp, n);
       var lin = b.split('\n').map(function (l) { return l.trim(); }).filter(Boolean), q = { tipo: 'MC', enunciado: '', opciones: [], correcta: '', puntos: 1, explicacion: '', tema: '' }, enun = [], resp = '';
       lin.forEach(function (l) {
         var m;
@@ -533,6 +591,32 @@
       else if (q.tipo === 'MC' && q.opciones.length < 2) q.error = '#' + (n + 1) + ' con menos de 2 opciones';
       return q;
     });
+  }
+
+  function tipoDe(s) {
+    s = String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    var m = [['pseudo', 'ALGORITMO'], ['algoritmo', 'ALGORITMO'], ['flujo', 'FLUJO'], ['diagrama', 'FLUJO'], ['ordenar', 'ORDENAR'], ['orden', 'ORDENAR'], ['relacion', 'RELACIONAR'], ['empareja', 'RELACIONAR'],
+      ['clasific', 'CLASIFICAR'], ['complet', 'COMPLETAR'], ['numer', 'NUMERICA'], ['corta', 'CORTA'], ['verdadero', 'VF'], ['seleccion', 'MC']].find(function (x) { return s.indexOf(x[0]) >= 0; });
+    return m && AUTO.concat(['NUMERICA']).indexOf(m[1]) >= 0 ? m[1] : null;
+  }
+  /** Bloque pegado de un tipo dinámico: «Tipo: …», la pregunta en la primera línea y los elementos debajo. */
+  function analizarNuevo(b, tipo, n) {
+    var q = { tipo: tipo, enunciado: '', opciones: [], correcta: AUTO.indexOf(tipo) >= 0 ? 'auto' : '', puntos: 1, explicacion: '', tema: '' }, cont = [], tol = '0';
+    b.split('\n').forEach(function (l) {
+      var m;
+      if ((m = l.match(/^\s*tipo\s*[:=]/i))) return;
+      if ((m = l.match(/^\s*(explicaci[oó]n)\s*[:=]\s*(.+)$/i))) { q.explicacion = m[2].trim(); return; }
+      if ((m = l.match(/^\s*tema\s*[:=]\s*(.+)$/i))) { q.tema = m[1].trim(); return; }
+      if ((m = l.match(/^\s*puntos\s*[:=]\s*([\d.,]+)/i))) { q.puntos = Number(m[1].replace(',', '.')) || 1; return; }
+      if (tipo === 'NUMERICA' && (m = l.match(/^\s*(respuesta|r)\s*[:=]\s*(.+)$/i))) { q.correcta = m[2].trim().replace(',', '.'); return; }
+      if (tipo === 'NUMERICA' && (m = l.match(/^\s*(tolerancia|margen)\s*[:=]\s*(.+)$/i))) { tol = m[2].trim().replace(',', '.'); return; }
+      if (l.trim()) cont.push(l);
+    });
+    if (tipo === 'COMPLETAR') q.enunciado = cont.join('\n').replace(/^\s*\d+\s*[\.\)\-]\s*/, '');
+    else { q.enunciado = (cont.shift() || '').trim().replace(/^\d+\s*[\.\)\-]\s*/, ''); q.opciones = deLineas(tipo, cont.map(function (l) { return tipo === 'ALGORITMO' ? l : l.replace(/^\s*(?:\d+[\.\)]|[-•*])\s+/, ''); }).join('\n')); }
+    if (tipo === 'NUMERICA') q.opciones = [tol];
+    var e = validarP(q, n); if (e) q.error = '#' + e;
+    return q;
   }
 
   /* Restricciones */
@@ -579,7 +663,7 @@
     leerPaso();
     var x = E.ex;
     if (!x.titulo.trim()) { E.paso = 'datos'; pintarEditor(); AVISO('Ponle un título al examen', 'error'); return; }
-    var malas = E.preguntas.map(function (q, i) { return !q.enunciado.trim() ? i + 1 + ' (sin texto)' : !String(q.correcta || '').trim() ? i + 1 + ' (sin respuesta correcta)' : q.tipo === 'MC' && q.opciones.filter(function (o) { return o.trim(); }).length < 2 ? i + 1 + ' (pocas opciones)' : null; }).filter(Boolean);
+    var malas = E.preguntas.map(validarP).filter(Boolean);
     if (malas.length) { E.paso = 'preguntas'; pintarEditor(); AVISO('Revisa la pregunta ' + malas[0], 'error'); return; }
     $('edGuardar').disabled = true; $('edEstado').textContent = 'Guardando…';
     var datos = { action: 'guardarExamen', examen: { id: x.id, titulo: x.titulo, materia: x.materia, curso: x.curso, modo: x.modo, minutos: x.minutos, preguntas: x.preguntas, notaMinima: x.notaMinima,
@@ -677,7 +761,7 @@
         modal('<h2>' + ICO('ver') + ' ' + esc(it.nombre) + '</h2><p class="suave">Nota <b>' + (it.nota === '' ? '—' : it.nota) + '</b> · ' + DURACION(it.duracion) + ' · ' + esc(it.motivo || 'En curso') + '</p>' +
           (it.eventos && it.eventos.length ? '<div class="pq"><b>' + ICO('alerta') + ' Salidas registradas</b>' + it.eventos.map(function (v) { return '<div class="pequeno suave">' + FECHA(v.t) + ' · ' + esc(v.e) + '</div>'; }).join('') + '</div>' : '') +
           d.revision.map(function (q) { return '<div class="pq" style="border-left:5px solid ' + (q.pendiente ? 'var(--amarillo)' : q.bien ? 'var(--verde)' : q.obtenidos ? 'var(--amarillo)' : 'var(--rojo)') + '"><b style="white-space:pre-line">' + q.n + '. ' + esc(q.enunciado) + '</b>' +
-            ' <span class="pildora">' + q.obtenidos + ' / ' + q.puntos + ' pt</span>' + (q.pendiente ? ' <span class="pildora amarillo">Por corregir</span>' : '') + '<div class="pequeno" style="margin-top:6px">' +
+            ' <span class="pildora">' + q.obtenidos + ' / ' + q.puntos + ' pt</span>' + (q.pendiente ? ' <span class="pildora amarillo">Por corregir</span>' : '') + '<div class="pequeno" style="margin-top:6px;white-space:pre-line">' +
             (q.bien ? '✔ ' + esc(q.tu) : (q.pendiente ? '✎ ' : '✘ ') + esc(q.tu || '(sin responder)') + ' · <span style="color:var(--verde)">' + (q.tipo === 'CORTA' ? 'Modelo: ' : 'Correcta: ') + esc(q.correcta) + '</span>') + '</div></div>'; }).join('') +
           '<div style="text-align:right;margin-top:10px"><button class="btn claro" data-cerrar>Cerrar</button></div>', true);
       }).catch(function (er) { AVISO(er.message, 'error'); });
@@ -754,8 +838,8 @@
         var v = e.target.closest('[data-bver]'), u = e.target.closest('[data-busar]');
         if (v) A({ action: 'examen', id: v.dataset.bver }).then(function (r) {
           modal('<h2>' + ICO('ver') + ' ' + esc(r.examen.titulo) + '</h2><p class="suave pequeno">' + esc(r.examen.instrucciones || '') + '</p>' + r.preguntas.map(function (q, i) {
-            return '<div class="pq"><b style="white-space:pre-line">' + (i + 1) + '. ' + esc(q.enunciado) + '</b> <span class="pildora">' + ({ MC: 'Selección', VF: 'V/F', CORTA: 'Corta' })[q.tipo] + '</span>' +
-              (q.tipo === 'CORTA' ? '<div class="pequeno" style="color:var(--verde);margin-top:6px">Modelo: ' + esc(q.correcta) + '</div>' : '<div class="pequeno" style="margin-top:6px">' + q.opciones.map(function (o) { return o === q.correcta ? '<b style="color:var(--verde)">✔ ' + esc(o) + '</b>' : esc(o); }).join(' · ') + '</div>') + '</div>';
+            return '<div class="pq"><b style="white-space:pre-line">' + (i + 1) + '. ' + esc(q.enunciado) + '</b> <span class="pildora">' + (TIPOS_ED[q.tipo] || q.tipo) + '</span>' +
+              (AUTO.concat(['NUMERICA']).indexOf(q.tipo) >= 0 ? '<div class="pequeno" style="color:var(--verde);margin-top:6px;white-space:pre-line">' + esc(claveTexto(q)) + '</div>' : q.tipo === 'CORTA' ? '<div class="pequeno" style="color:var(--verde);margin-top:6px">Modelo: ' + esc(q.correcta) + '</div>' : '<div class="pequeno" style="margin-top:6px">' + q.opciones.map(function (o) { return o === q.correcta ? '<b style="color:var(--verde)">✔ ' + esc(o) + '</b>' : esc(o); }).join(' · ') + '</div>') + '</div>';
           }).join('') + '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px"><button class="btn claro" data-cerrar>Cerrar</button><button class="btn primario" data-busar2="' + r.examen.id + '">' + ICO('copiar') + ' Usar en mi curso</button></div>', true);
           $('modalCaja').querySelector('[data-busar2]').onclick = function () { usarBanco(lista.find(function (x) { return x.id === r.examen.id; })); };
         }).catch(function (er) { AVISO(er.message, 'error'); });
