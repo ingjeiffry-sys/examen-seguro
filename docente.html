@@ -7,10 +7,11 @@
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="es.css?v=3">
+<link rel="stylesheet" href="es.css?v=4">
 <script src="config.js?v=2"></script>
-<script src="es.js?v=5"></script>
+<script src="es.js?v=6"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="ayudante.js?v=1" defer></script>
 <style>
   /* Acceso */
   .acceso { min-height: 100vh; display: grid; place-items: center; padding: 20px 16px; }
@@ -119,6 +120,9 @@
   .ayuda-pasos details { padding: 14px 16px; border-radius: 16px; background: var(--sup-fuerte); border: 1px solid var(--linea); margin-bottom: 10px; }
   .ayuda-pasos summary { font-weight: 800; cursor: pointer; display: flex; gap: 10px; align-items: center; }
   .ayuda-pasos ol { margin: 10px 0 0; padding-left: 22px; } .ayuda-pasos li { margin: 4px 0; }
+  .media-ed { margin: 10px 0 4px; padding: 8px 12px; border-radius: 14px; background: var(--sup2); }
+  .media-ed summary { cursor: pointer; font-size: 14px; font-weight: 600; display: flex; gap: 6px; align-items: center; }
+  .media-ed summary .ico { width: 16px; height: 16px; }
 </style>
 </head>
 <body>
@@ -229,6 +233,7 @@
   }
 
   /* ---------- Excel y PDF (librerías bajo demanda) ---------- */
+  window.ES_IR = function (v, a) { ir(v, a); }; window.ES_VISTA = function () { return S.vista; };   // para el Ayudante
   function cargarJs(u) { return new Promise(function (ok, mal) { var s = document.createElement('script'); s.src = u; s.onload = ok; s.onerror = function () { mal(new Error('No se pudo cargar la herramienta de descarga. Revisa el internet.')); }; document.head.appendChild(s); }); }
   function libs() {
     var cdn = 'https://cdnjs.cloudflare.com/ajax/libs/';
@@ -277,6 +282,9 @@
       if (x.instrucciones) linea(x.instrucciones, 10, false, 70);
       preguntas.forEach(function (q, i) {
         y += 8; linea((i + 1) + '. ' + String(q.enunciado).replace(/\[\[(.+?)\]\]/g, '______________') + '   (' + (q.puntos || 1) + ' pt)', 11, true);
+        if (q.media) { var md = String(q.media), dk = md.indexOf(':'), src = md.slice(dk + 1);
+          if (/^data:image\/(png|jpeg)/.test(src)) { try { var pr0 = doc.getImageProperties(src), iw = Math.min(260, pr0.width), ih = pr0.height * iw / pr0.width; if (y + ih > H - 50) { doc.addPage(); y = 50; } doc.addImage(src, m + 18, y, iw, ih); y += ih + 8; } catch (er) {} }
+          else linea('      [' + md.slice(0, dk) + ' en la plataforma: ' + src + ']', 9, false, 110); }
         var mezcla = function (a) { a = a.slice(); for (var z = a.length - 1; z > 0; z--) { var w = Math.floor(Math.random() * (z + 1)), tmp = a[z]; a[z] = a[w]; a[w] = tmp; } return a; };
         if (q.tipo === 'CORTA') for (var k = 0; k < 3; k++) linea('_____________________________________________________________________________', 10, false, 160);
         else if (ORDEN_ED.indexOf(q.tipo) >= 0) { linea('      Numera del 1 al ' + q.opciones.length + ' en el orden correcto:', 10, false, 90); mezcla(q.opciones).forEach(function (o) { linea('      (     )  ' + o, 10.5); }); }
@@ -285,6 +293,8 @@
         else if (q.tipo === 'CLASIFICAR') { var gr = []; q.opciones.forEach(function (s) { var c = s.split(' => ')[0]; if (gr.indexOf(c) < 0) gr.push(c); });
           linea('      Grupos: ' + gr.join(' · ') + '. Escribe el grupo de cada elemento:', 10, false, 90); mezcla(q.opciones.map(function (s) { return s.split(' => ')[1]; })).forEach(function (o) { linea('      ' + o + ':  ____________________', 10.5); }); }
         else if (q.tipo === 'NUMERICA') linea('      Respuesta: ______________', 10.5);
+        else if (q.tipo === 'PALABRAS') { var hs = []; String(q.enunciado).replace(/\[\[(.+?)\]\]/g, function (mm, a) { hs.push(a.split('|')[0]); return mm; }); linea('      Banco de palabras:  ' + mezcla(hs.concat(q.opciones || [])).join('  ·  '), 10.5, false, 60); }
+        else if (q.tipo === 'VFJ') { linea('      (   ) Verdadero      (   ) Falso', 10.5); linea('      ¿Por qué? ____________________________________________________________', 10, false, 120); linea('      _____________________________________________________________________', 10, false, 160); }
         else if (q.tipo !== 'COMPLETAR') q.opciones.forEach(function (o, j) { linea('      ' + String.fromCharCode(97 + j) + ')  ' + o, 10.5); });
       });
       doc.addPage(); y = 50; cab(); y += 6; linea('CLAVE DE RESPUESTAS (solo para el docente)', 12, true);
@@ -393,7 +403,7 @@
   var E = null;
   function editor(arg) {
     var id = arg && typeof arg === 'object' ? arg.id : arg, paso = arg && arg.paso || 'datos';
-    if (!id) { E = { paso: 'datos', ex: { titulo: '', materia: '', curso: S.panel.cursos[0] || '', modo: 'EXAMEN', minutos: 30, preguntas: 0, notaMinima: 70, inicio: '', fin: '', instrucciones: '', activo: true, reglas: JSON.parse(JSON.stringify(PRESETS.estricto.r)) }, preguntas: [] }; pintarEditor(); return; }
+    if (!id) { E = { paso: paso, ex: { titulo: '', materia: '', curso: S.panel.cursos[0] || '', modo: 'EXAMEN', minutos: 30, preguntas: 0, notaMinima: 70, inicio: '', fin: '', instrucciones: '', activo: true, reglas: JSON.parse(JSON.stringify(PRESETS.estricto.r)) }, preguntas: [] }; pintarEditor(); return; }
     cargando('Abriendo el examen…');
     A({ action: 'examen', id: id }).then(function (r) {
       var x = r.examen;
@@ -454,14 +464,15 @@
   }
 
   /* Tipos de pregunta */
-  var TIPOS_ED = { MC: 'Selección múltiple', VF: 'Verdadero o falso', CORTA: 'Respuesta corta', ORDENAR: 'Ordenar pasos', ALGORITMO: 'Armar algoritmo (pseudocódigo)', FLUJO: 'Diagrama de flujo',
-    RELACIONAR: 'Relacionar columnas', CLASIFICAR: 'Clasificar en grupos', COMPLETAR: 'Completar espacios', NUMERICA: 'Respuesta numérica' };
-  var DINAMICAS = [['ORDENAR', 'Ordenar', 'barajar'], ['ALGORITMO', 'Algoritmo', 'lista'], ['FLUJO', 'Diagrama de flujo', 'grafica'], ['RELACIONAR', 'Relacionar', 'enlace'], ['CLASIFICAR', 'Clasificar', 'banco'], ['COMPLETAR', 'Completar', 'editar'], ['NUMERICA', 'Numérica', 'check']];
-  var ORDEN_ED = ['ORDENAR', 'ALGORITMO', 'FLUJO'], AUTO = ORDEN_ED.concat(['RELACIONAR', 'CLASIFICAR', 'COMPLETAR']);
+  var TIPOS_ED = { MC: 'Selección múltiple', VF: 'Verdadero o falso', VFJ: 'V o F con justificación', CORTA: 'Respuesta corta', ORDENAR: 'Ordenar pasos', ALGORITMO: 'Armar algoritmo (pseudocódigo)', FLUJO: 'Diagrama de flujo',
+    RELACIONAR: 'Relacionar columnas', CLASIFICAR: 'Clasificar en grupos', COMPLETAR: 'Completar espacios', PALABRAS: 'Completar con banco de palabras', NUMERICA: 'Respuesta numérica' };
+  var DINAMICAS = [['ORDENAR', 'Ordenar', 'barajar'], ['ALGORITMO', 'Algoritmo', 'lista'], ['FLUJO', 'Diagrama de flujo', 'grafica'], ['RELACIONAR', 'Relacionar', 'enlace'], ['CLASIFICAR', 'Clasificar', 'banco'], ['COMPLETAR', 'Completar', 'editar'], ['PALABRAS', 'Banco de palabras', 'libro'], ['NUMERICA', 'Numérica', 'check'], ['VFJ', 'V/F justificada', 'corregir']];
+  var ORDEN_ED = ['ORDENAR', 'ALGORITMO', 'FLUJO'], AUTO = ORDEN_ED.concat(['RELACIONAR', 'CLASIFICAR', 'COMPLETAR', 'PALABRAS']), HUECOS_ED = ['COMPLETAR', 'PALABRAS'];
   var AYUDA_ED = { ORDENAR: 'Un paso por línea, en el orden correcto (al estudiante le salen desordenados)', ALGORITMO: 'Una línea de pseudocódigo por renglón, en orden. Respeta la sangría con espacios',
     FLUJO: 'Un bloque por línea, de arriba hacia abajo. La forma sale sola: Inicio/Fin = óvalo; Leer/Escribir = entrada/salida; con «?» o «Si…» = decisión; lo demás = proceso',
     RELACIONAR: 'Una pareja por línea: izquierda = derecha', CLASIFICAR: 'Un grupo por línea: Grupo: elemento, elemento, elemento',
-    COMPLETAR: 'Escribe el texto en la pregunta y pon cada respuesta entre [[ ]]. Varias respuestas válidas: [[Escribir|Mostrar]]. Si el texto tiene varias líneas se muestra como código.' };
+    COMPLETAR: 'Escribe el texto en la pregunta y pon cada respuesta entre [[ ]]. Varias respuestas válidas: [[Escribir|Mostrar]]. Si el texto tiene varias líneas se muestra como código.',
+    PALABRAS: 'Escribe la oración en la pregunta y pon cada palabra correcta entre [[ ]]. Abajo, palabras de relleno (una por línea) para que no sea tan fácil' };
   var EJEMPLO_ED = { ORDENAR: 'Encender la computadora\nAbrir el navegador\nEscribir la dirección\nPulsar Enter', ALGORITMO: 'Inicio\nLeer A, B\nSi A > B entonces\n    Escribir A\nSino\n    Escribir B\nFinSi\nFin',
     FLUJO: 'Inicio\nLeer N\n¿N es par?\nEscribir "Par"\nFin', RELACIONAR: 'CPU = Procesa los datos\nRAM = Memoria temporal\nDisco duro = Guarda archivos', CLASIFICAR: 'Hardware: Teclado, Monitor, Mouse\nSoftware: Word, Windows, Chrome' };
   function lineasDe(x) {
@@ -480,7 +491,7 @@
     if (!q.enunciado.trim()) return n + ' (sin texto)';
     if (ORDEN_ED.indexOf(q.tipo) >= 0) return ops.length < 3 ? n + ' (necesita al menos 3 pasos)' : null;
     if (q.tipo === 'RELACIONAR' || q.tipo === 'CLASIFICAR') return ops.length < 2 ? n + ' (necesita al menos 2 parejas)' : null;
-    if (q.tipo === 'COMPLETAR') return /\[\[.+?\]\]/.test(q.enunciado) ? null : n + ' (marca los espacios con [[respuesta]])';
+    if (HUECOS_ED.indexOf(q.tipo) >= 0) return /\[\[.+?\]\]/.test(q.enunciado) ? null : n + ' (marca los espacios con [[respuesta]])';
     if (q.tipo === 'NUMERICA') return isNaN(Number(String(q.correcta).replace(',', '.'))) || !String(q.correcta).trim() ? n + ' (la respuesta debe ser un número)' : null;
     if (!String(q.correcta || '').trim()) return n + ' (sin respuesta correcta)';
     return q.tipo === 'MC' && ops.length < 2 ? n + ' (pocas opciones)' : null;
@@ -491,7 +502,7 @@
     if (ORDEN_ED.indexOf(q.tipo) >= 0) return o.map(function (x, j) { return (j + 1) + '. ' + x; }).join('\n');
     if (q.tipo === 'RELACIONAR') return o.map(function (s) { return s.replace(' => ', ' → '); }).join('\n');
     if (q.tipo === 'CLASIFICAR') return lineasDe(q);
-    if (q.tipo === 'COMPLETAR') { var h = []; String(q.enunciado).replace(/\[\[(.+?)\]\]/g, function (m, a) { h.push(a.split('|')[0]); return m; }); return h.join(' · '); }
+    if (HUECOS_ED.indexOf(q.tipo) >= 0) { var h = []; String(q.enunciado).replace(/\[\[(.+?)\]\]/g, function (m, a) { h.push(a.split('|')[0]); return m; }); return h.join(' · '); }
     if (q.tipo === 'NUMERICA') return q.correcta + (Number(o[0]) ? ' (± ' + o[0] + ')' : '');
     return String(q.correcta || '').split('|')[0];
   }
@@ -506,11 +517,12 @@
       (q.length ? q.map(htmlPregunta).join('') : '<div class="tarjeta vacio"><div class="chip-ico">' + ICO('lista') + '</div><h3 style="justify-content:center">Sin preguntas todavía</h3><p>Agrega una a una o usa «Pegar preguntas» para cargar muchas de un golpe.</p></div>');
     var c = $('edCuerpo');
     c.onclick = function (e) {
-      var t = e.target.closest('[data-add],[data-del],[data-sube],[data-baja],[data-cor],[data-masop],[data-quitaop],#btnImportar'); if (!t) return;
+      var t = e.target.closest('[data-add],[data-del],[data-sube],[data-baja],[data-cor],[data-masop],[data-quitaop],[data-sinmedia],#btnImportar'); if (!t) return;
       if (t.id === 'btnImportar') { leerPreguntas(); importar(); return; }
       leerPreguntas();
-      if (t.dataset.add) { var tp = t.dataset.add; q.push({ tipo: tp, enunciado: '', opciones: tp === 'MC' ? ['', '', '', ''] : tp === 'VF' ? ['Verdadero', 'Falso'] : [], correcta: tp === 'VF' ? 'Verdadero' : AUTO.indexOf(tp) >= 0 ? 'auto' : '', puntos: 1, explicacion: '', tema: '' }); }
+      if (t.dataset.add) { var tp = t.dataset.add; q.push({ tipo: tp, enunciado: '', opciones: tp === 'MC' ? ['', '', '', ''] : tp === 'VF' || tp === 'VFJ' ? ['Verdadero', 'Falso'] : [], correcta: tp === 'VF' || tp === 'VFJ' ? 'Verdadero' : AUTO.indexOf(tp) >= 0 ? 'auto' : '', puntos: 1, explicacion: '', tema: '' }); }
       var i = Number(t.dataset.del || t.dataset.sube || t.dataset.baja || t.dataset.masop || t.dataset.quitaop || (t.dataset.cor || '').split(':')[0]);
+      if (t.dataset.sinmedia !== undefined) q[Number(t.dataset.sinmedia)].media = '';
       if (t.dataset.del !== undefined) q.splice(i, 1);
       if (t.dataset.sube !== undefined && i > 0) q.splice(i - 1, 0, q.splice(i, 1)[0]);
       if (t.dataset.baja !== undefined && i < q.length - 1) q.splice(i + 1, 0, q.splice(i, 1)[0]);
@@ -520,14 +532,21 @@
       pasoPreguntas();
       if (t.dataset.add) { var ult = c.querySelectorAll('.preg-ed'); if (ult.length) ult[ult.length - 1].scrollIntoView({ behavior: 'smooth', block: 'center' }); }
     };
-    c.onchange = function (e) { if (e.target.dataset.tipo !== undefined) { leerPreguntas(); var i = Number(e.target.dataset.tipo), x = q[i]; x.tipo = e.target.value;
-      if (x.tipo === 'VF') { x.opciones = ['Verdadero', 'Falso']; x.correcta = 'Verdadero'; } else if (x.tipo === 'MC' && x.opciones.length < 2) { x.opciones = ['', '', '', '']; x.correcta = ''; } else if (x.tipo === 'CORTA') { x.opciones = []; if (x.correcta === 'auto') x.correcta = ''; } else if (TIPOS_ED[x.tipo] && x.tipo !== 'MC' && x.tipo !== 'VF') { x.opciones = []; x.correcta = AUTO.indexOf(x.tipo) >= 0 ? 'auto' : ''; }
+    c.onchange = function (e) {
+      if (e.target.dataset.subir !== undefined) { var fl = e.target.files[0], si = Number(e.target.dataset.subir); if (!fl) return; leerPreguntas();
+        comprimir(fl).then(function (d) { q[si].media = 'imagen:' + d; pasoPreguntas(); AVISO('Imagen agregada'); }).catch(function (er) { AVISO(er.message, 'error'); }); return; }
+      if (e.target.dataset.f === 'mediaUrl') { var mu = e.target.value.trim(), ms = c.querySelector('[data-f="mediaTipo"][data-i="' + e.target.dataset.i + '"]');
+        if (mu && !/^https:\/\//.test(mu)) { AVISO('El enlace debe empezar con https://', 'error'); return; }
+        if (mu && ms) ms.value = TIPO_MEDIA(mu); leerPreguntas(); pasoPreguntas(); return; }
+      if (e.target.dataset.tipo !== undefined) { leerPreguntas(); var i = Number(e.target.dataset.tipo), x = q[i]; x.tipo = e.target.value;
+      if (x.tipo === 'VF' || x.tipo === 'VFJ') { x.opciones = ['Verdadero', 'Falso']; x.correcta = 'Verdadero'; } else if (x.tipo === 'MC' && x.opciones.length < 2) { x.opciones = ['', '', '', '']; x.correcta = ''; } else if (x.tipo === 'CORTA') { x.opciones = []; if (x.correcta === 'auto') x.correcta = ''; } else if (TIPOS_ED[x.tipo] && x.tipo !== 'MC' && x.tipo !== 'VF' && x.tipo !== 'VFJ') { x.opciones = []; x.correcta = AUTO.indexOf(x.tipo) >= 0 ? 'auto' : ''; }
       pasoPreguntas(); } };
     $('edEstado').textContent = '';
   }
   function htmlPregunta(x, i) {
     var cuerpo;
     if (x.tipo === 'CORTA') cuerpo = '<label class="campo"><span>Respuestas aceptadas (separa con |)</span><input class="entrada" data-f="correcta" data-i="' + i + '" value="' + esc(x.correcta) + '" placeholder="Ej.: Na|sodio"></label>';
+    else if (x.tipo === 'PALABRAS') cuerpo = '<p class="pequeno suave" style="margin:6px 0">' + AYUDA_ED.PALABRAS + '</p><textarea class="entrada" data-f="lineas" data-i="' + i + '" style="min-height:70px" placeholder="memoria&#10;procesador">' + esc((x.opciones || []).join('\n')) + '</textarea>';
     else if (AYUDA_ED[x.tipo] && x.tipo !== 'COMPLETAR' && x.tipo !== 'NUMERICA') cuerpo = '<label class="campo"><span>' + AYUDA_ED[x.tipo] + '</span><textarea class="entrada" data-f="lineas" data-i="' + i + '" style="min-height:130px' + (x.tipo === 'ALGORITMO' ? ';font-family:ui-monospace,Consolas,monospace;font-size:13.5px' : '') + '" placeholder="' + esc(EJEMPLO_ED[x.tipo]) + '">' + esc(lineasDe(x)) + '</textarea></label>';
     else if (x.tipo === 'COMPLETAR') cuerpo = '<p class="pequeno suave" style="margin:6px 0">' + AYUDA_ED.COMPLETAR + '</p>';
     else if (x.tipo === 'NUMERICA') cuerpo = '<div class="fila"><label class="campo"><span>Respuesta (número)</span><input class="entrada" data-f="correcta" data-i="' + i + '" inputmode="decimal" value="' + esc(x.correcta) + '" placeholder="Ej.: 3.5"></label>' +
@@ -535,17 +554,45 @@
     else cuerpo = '<div><span class="pequeno suave">Marca el círculo de la respuesta correcta</span>' + x.opciones.map(function (o, j) {
       var on = x._cor !== undefined ? x._cor === j : (o && o === x.correcta);
       return '<div class="opcion"><button type="button" class="correcta' + (on ? ' on' : '') + '" data-cor="' + i + ':' + j + '" aria-label="Marcar como correcta">' + ICO('check') + '</button>' +
-        '<input class="entrada" data-f="op" data-i="' + i + '" data-j="' + j + '" value="' + esc(o) + '" placeholder="Opción ' + String.fromCharCode(65 + j) + '"' + (x.tipo === 'VF' ? ' readonly' : '') + '>' +
+        '<input class="entrada" data-f="op" data-i="' + i + '" data-j="' + j + '" value="' + esc(o) + '" placeholder="Opción ' + String.fromCharCode(65 + j) + '"' + (x.tipo === 'VF' || x.tipo === 'VFJ' ? ' readonly' : '') + '>' +
         (x.tipo === 'MC' ? '<button type="button" class="btn fantasma icono" data-quitaop="' + i + '" data-op="' + j + '" title="Quitar">' + ICO('x') + '</button>' : '') + '</div>';
-    }).join('') + (x.tipo === 'MC' && x.opciones.length < 8 ? '<button type="button" class="btn fantasma mini" data-masop="' + i + '">' + ICO('mas') + ' Opción</button>' : '') + '</div>';
+    }).join('') + (x.tipo === 'MC' && x.opciones.length < 8 ? '<button type="button" class="btn fantasma mini" data-masop="' + i + '">' + ICO('mas') + ' Opción</button>' : '') + (x.tipo === 'VFJ' ? '<p class="pequeno suave" style="margin:6px 0 0">El estudiante elige V o F y escribe por qué. La elección vale la mitad (se califica sola); la justificación la corriges tú en Resultados ▸ Por corregir. Escribe la justificación modelo en «Explicación».</p>' : '') + '</div>';
     return '<div class="preg-ed tarjeta"><div class="top"><span class="num">' + (i + 1) + '</span>' +
       '<select class="entrada mini" data-tipo="' + i + '">' + Object.keys(TIPOS_ED).map(function (k) { return '<option value="' + k + '"' + (x.tipo === k ? ' selected' : '') + '>' + TIPOS_ED[k] + '</option>'; }).join('') + '</select>' +
       '<label class="pequeno suave" style="display:flex;gap:6px;align-items:center">Puntos <input class="entrada mini" type="number" min="0.5" step="0.5" data-f="puntos" data-i="' + i + '" value="' + (x.puntos || 1) + '" style="width:76px"></label>' +
       '<span style="margin-left:auto;display:flex;gap:2px"><button class="btn fantasma icono" data-sube="' + i + '" title="Subir">' + ICO('arriba') + '</button><button class="btn fantasma icono" data-baja="' + i + '" title="Bajar">' + ICO('abajo') + '</button>' +
       '<button class="btn fantasma icono" data-del="' + i + '" title="Borrar" style="color:var(--rojo)">' + ICO('borrar') + '</button></span></div>' +
-      '<textarea class="entrada" data-f="enunciado" data-i="' + i + '" placeholder="' + (x.tipo === 'COMPLETAR' ? 'Ej.: Para mostrar datos se usa [[Escribir]] y para pedirlos [[Leer]].' : 'Escribe la pregunta') + '" style="min-height:70px' + (x.tipo === 'COMPLETAR' ? ';font-family:ui-monospace,Consolas,monospace' : '') + '">' + esc(x.enunciado) + '</textarea>' + cuerpo +
+      '<textarea class="entrada" data-f="enunciado" data-i="' + i + '" placeholder="' + (x.tipo === 'COMPLETAR' ? 'Ej.: Para mostrar datos se usa [[Escribir]] y para pedirlos [[Leer]].' : x.tipo === 'PALABRAS' ? 'Ej.: El [[teclado]] es de entrada y la [[impresora]] es de salida.' : 'Escribe la pregunta') + '" style="min-height:70px' + (x.tipo === 'COMPLETAR' ? ';font-family:ui-monospace,Consolas,monospace' : '') + '">' + esc(x.enunciado) + '</textarea>' + htmlMedia(x, i) + cuerpo +
       '<div class="fila" style="margin-top:10px"><input class="entrada" data-f="explicacion" data-i="' + i + '" value="' + esc(x.explicacion || '') + '" placeholder="Explicación (se ve en prácticas, opcional)">' +
       '<input class="entrada" data-f="tema" data-i="' + i + '" value="' + esc(x.tema || '') + '" placeholder="Tema o criterio (opcional)"></div></div>';
+  }
+  /** Imagen, video o audio de la pregunta: enlace o imagen subida (se comprime para que quepa en la hoja). */
+  function htmlMedia(x, i) {
+    var m = String(x.media || ''), k = m.indexOf(':'), tipo = k > 0 ? m.slice(0, k) : 'imagen', url = k > 0 ? m.slice(k + 1) : '', subida = /^data:/.test(url);
+    return '<details class="media-ed"' + (m ? ' open' : '') + '><summary>' + ICO('video') + ' Imagen, video o audio ' + (m ? '<span class="pildora verde">agregado</span>' : '<span class="suave">(opcional)</span>') + '</summary>' + (m ? MEDIA(m) : '') +
+      '<div class="fila" style="align-items:end"><label class="campo" style="flex:2"><span>Enlace: imagen, YouTube, Google Drive o MP3</span><input class="entrada" data-f="mediaUrl" data-i="' + i + '" value="' + (subida ? '' : esc(url)) + '" placeholder="' + (subida ? 'Imagen subida desde tu equipo' : 'https://…') + '"></label>' +
+      '<label class="campo"><span>Es</span><select class="entrada" data-f="mediaTipo" data-i="' + i + '">' + [['imagen', 'Imagen'], ['video', 'Video'], ['audio', 'Audio']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === tipo ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px"><label class="btn claro mini">' + ICO('importar') + ' Subir imagen<input type="file" accept="image/*" data-subir="' + i + '" hidden></label>' +
+      (m ? '<button type="button" class="btn fantasma mini" data-sinmedia="' + i + '" style="color:var(--rojo)">' + ICO('borrar') + ' Quitar</button>' : '') + '<span class="pequeno suave">De Drive: comparte el archivo como «Cualquier persona con el enlace».</span></div></details>';
+  }
+  /** Foto del equipo → JPEG pequeño (menos de 45 000 caracteres) para guardarlo con la pregunta. */
+  function comprimir(file) {
+    return new Promise(function (ok, mal) {
+      var img = new Image(), u = URL.createObjectURL(file);
+      img.onerror = function () { URL.revokeObjectURL(u); mal(new Error('No se pudo leer esa imagen.')); };
+      img.onload = function () {
+        URL.revokeObjectURL(u);
+        var lado = 1000, d = '';
+        for (var t = 0; t < 8; t++) {
+          var s = Math.min(1, lado / Math.max(img.width, img.height)), cv = document.createElement('canvas'); cv.width = Math.round(img.width * s); cv.height = Math.round(img.height * s);
+          var g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0, cv.width, cv.height);
+          d = cv.toDataURL('image/jpeg', t < 3 ? 0.75 : 0.6); if (d.length < 45000) return ok(d);
+          lado *= 0.8;
+        }
+        mal(new Error('La imagen es muy pesada. Usa un enlace de Drive.'));
+      };
+      img.src = u;
+    });
   }
   function leerPreguntas() {
     if (!$('edCuerpo')) return;
@@ -555,11 +602,14 @@
       else if (el.dataset.f === 'puntos') x.puntos = Number(el.value) || 1;
       else if (el.dataset.f === 'lineas') x.opciones = deLineas(x.tipo, el.value);
       else if (el.dataset.f === 'tol') x.opciones = [el.value.trim() || '0'];
+      else if (el.dataset.f === 'mediaUrl') x._mu = el.value.trim();
+      else if (el.dataset.f === 'mediaTipo') { var cu = String(x.media || ''), cuUrl = cu.slice(cu.indexOf(':') + 1), mu = x._mu; delete x._mu;
+        x.media = mu ? el.value + ':' + mu : /^data:image\//.test(cuUrl) ? 'imagen:' + cuUrl : ''; }
       else x[el.dataset.f] = el.value;
     });
   }
   function importar() {
-    modal('<h2>' + ICO('importar') + ' Pegar preguntas</h2><p class="suave pequeno">Separa cada pregunta con una línea en blanco. Marca la correcta con un asterisco (*). Para V/F escribe «Respuesta: V» o «F». Sin opciones y con «Respuesta:» es respuesta corta. <b>Tipos dinámicos:</b> agrega una línea «Tipo: ordenar / algoritmo / diagrama / relacionar / clasificar / numérica», la pregunta y debajo los elementos en orden; para completar, pon las respuestas entre [[ ]].</p>' +
+    modal('<h2>' + ICO('importar') + ' Pegar preguntas</h2><p class="suave pequeno">Separa cada pregunta con una línea en blanco. Marca la correcta con un asterisco (*). Para V/F escribe «Respuesta: V» o «F». Sin opciones y con «Respuesta:» es respuesta corta. <b>Tipos dinámicos:</b> agrega una línea «Tipo: ordenar / algoritmo / diagrama / relacionar / clasificar / numérica», la pregunta y debajo los elementos en orden; para completar, pon las respuestas entre [[ ]]. <b>Banco de palabras:</b> «Tipo: palabras», la oración con [[ ]] y «Relleno: palabra, palabra». <b>V/F justificada:</b> «Tipo: justifica» y «Respuesta: V» o «F». <b>Imagen, video o audio:</b> una línea «Imagen: https://…» (o «Video:», «Audio:»).</p>' +
       '<textarea class="entrada" id="impTxt" style="min-height:260px;font-family:ui-monospace,Consolas,monospace;font-size:13.5px" placeholder="1. ¿Qué instrucción muestra un valor en pantalla?\na) Leer\n*b) Escribir\nc) Definir\nd) Mientras\nExplicación: Escribir muestra datos.\n\n2. El tipo Real guarda decimales.\nRespuesta: V\n\n3. Símbolo químico del sodio\nRespuesta: Na | sodio\n\nTipo: algoritmo\nArma el algoritmo que muestra el mayor\nInicio\nLeer A, B\nSi A > B entonces\n    Escribir A\nSino\n    Escribir B\nFinSi\nFin\n\nTipo: relacionar\nRelaciona cada parte con su función\nCPU = Procesa los datos\nRAM = Memoria temporal\n\nPara mostrar datos se usa [[Escribir]] y para pedirlos [[Leer]]."></textarea>' +
       '<div id="impVista" class="pequeno suave" style="margin:8px 0"></div><div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn claro" data-cerrar>Cancelar</button><button class="btn primario" id="impOk" disabled>Agregar</button></div>', true);
     var lista = [];
@@ -569,9 +619,16 @@
     $('impOk').onclick = function () { var ok = lista.filter(function (q) { return !q.error; }); ok.forEach(function (q) { delete q.error; E.preguntas.push(q); }); cerrarModal(); AVISO(ok.length + ' preguntas agregadas'); pasoPreguntas(); };
   }
   function analizar(txt) {
-    return txt.replace(/\r/g, '').split(/\n\s*\n/).map(function (b) { return b.replace(/^\s*\n|\s+$/g, ''); }).filter(function (b) { return b.trim(); }).map(function (b, n) {
+    return txt.replace(/\r/g, '').split(/\n\s*\n/).map(function (b) { return b.replace(/^\s*\n|\s+$/g, ''); }).filter(function (b) { return b.trim(); }).map(function (b0, n) {
+      var mm = b0.match(/^\s*(imagen|video|audio)\s*[:=]\s*(https:\/\/\S+)\s*$/im), q0 = analizar1(mm ? b0.replace(mm[0], '').replace(/^\s*\n/, '') : b0, n);
+      if (mm) q0.media = mm[1].toLowerCase() + ':' + mm[2];
+      return q0;
+    });
+  }
+  function analizar1(b, n) {
       var tm = b.match(/^\s*tipo\s*[:=]\s*([^\n]+)$/im), tp = tm ? tipoDe(tm[1]) : /\[\[.+?\]\]/.test(b) ? 'COMPLETAR' : null;
-      if (tp) return analizarNuevo(b, tp, n);
+      if (tp && tp !== 'VFJ') return analizarNuevo(b, tp, n);
+      if (tp === 'VFJ') b = b.replace(tm[0], '');
       var lin = b.split('\n').map(function (l) { return l.trim(); }).filter(Boolean), q = { tipo: 'MC', enunciado: '', opciones: [], correcta: '', puntos: 1, explicacion: '', tema: '' }, enun = [], resp = '';
       lin.forEach(function (l) {
         var m;
@@ -586,18 +643,19 @@
         if (/^(v|verdadero|f|falso)$/i.test(resp)) { q.tipo = 'VF'; q.opciones = ['Verdadero', 'Falso']; q.correcta = /^v/i.test(resp) ? 'Verdadero' : 'Falso'; }
         else { q.tipo = 'CORTA'; q.correcta = resp.split('|').map(function (s) { return s.trim(); }).filter(Boolean).join('|'); }
       } else if (resp && !q.correcta) { var k = resp.toLowerCase().charCodeAt(0) - 97; q.correcta = q.opciones[k] || q.opciones.find(function (o) { return o.toLowerCase() === resp.toLowerCase(); }) || ''; }
+      if (tp === 'VFJ') { if (q.tipo === 'VF') q.tipo = 'VFJ'; else q.error = '#' + (n + 1) + ' (V/F justificada: escribe «Respuesta: V» o «F»)'; }
+      if (q.error) return q;
       if (!q.enunciado) q.error = '#' + (n + 1) + ' sin pregunta';
       else if (!q.correcta) q.error = '#' + (n + 1) + ' sin respuesta correcta';
       else if (q.tipo === 'MC' && q.opciones.length < 2) q.error = '#' + (n + 1) + ' con menos de 2 opciones';
       return q;
-    });
   }
 
   function tipoDe(s) {
     s = String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-    var m = [['pseudo', 'ALGORITMO'], ['algoritmo', 'ALGORITMO'], ['flujo', 'FLUJO'], ['diagrama', 'FLUJO'], ['ordenar', 'ORDENAR'], ['orden', 'ORDENAR'], ['relacion', 'RELACIONAR'], ['empareja', 'RELACIONAR'],
+    var m = [['pseudo', 'ALGORITMO'], ['algoritmo', 'ALGORITMO'], ['flujo', 'FLUJO'], ['diagrama', 'FLUJO'], ['ordenar', 'ORDENAR'], ['orden', 'ORDENAR'], ['relacion', 'RELACIONAR'], ['empareja', 'RELACIONAR'], ['aparea', 'RELACIONAR'], ['justific', 'VFJ'], ['palabra', 'PALABRAS'],
       ['clasific', 'CLASIFICAR'], ['complet', 'COMPLETAR'], ['numer', 'NUMERICA'], ['corta', 'CORTA'], ['verdadero', 'VF'], ['seleccion', 'MC']].find(function (x) { return s.indexOf(x[0]) >= 0; });
-    return m && AUTO.concat(['NUMERICA']).indexOf(m[1]) >= 0 ? m[1] : null;
+    return m && AUTO.concat(['NUMERICA', 'VFJ']).indexOf(m[1]) >= 0 ? m[1] : null;
   }
   /** Bloque pegado de un tipo dinámico: «Tipo: …», la pregunta en la primera línea y los elementos debajo. */
   function analizarNuevo(b, tipo, n) {
@@ -610,9 +668,10 @@
       if ((m = l.match(/^\s*puntos\s*[:=]\s*([\d.,]+)/i))) { q.puntos = Number(m[1].replace(',', '.')) || 1; return; }
       if (tipo === 'NUMERICA' && (m = l.match(/^\s*(respuesta|r)\s*[:=]\s*(.+)$/i))) { q.correcta = m[2].trim().replace(',', '.'); return; }
       if (tipo === 'NUMERICA' && (m = l.match(/^\s*(tolerancia|margen)\s*[:=]\s*(.+)$/i))) { tol = m[2].trim().replace(',', '.'); return; }
+      if (tipo === 'PALABRAS' && (m = l.match(/^\s*(relleno|distractores|palabras extra)\s*[:=]\s*(.+)$/i))) { q.opciones = m[2].split(/[,;]/).map(function (s) { return s.trim(); }).filter(Boolean); return; }
       if (l.trim()) cont.push(l);
     });
-    if (tipo === 'COMPLETAR') q.enunciado = cont.join('\n').replace(/^\s*\d+\s*[\.\)\-]\s*/, '');
+    if (HUECOS_ED.indexOf(tipo) >= 0) q.enunciado = cont.join('\n').replace(/^\s*\d+\s*[\.\)\-]\s*/, '');
     else { q.enunciado = (cont.shift() || '').trim().replace(/^\d+\s*[\.\)\-]\s*/, ''); q.opciones = deLineas(tipo, cont.map(function (l) { return tipo === 'ALGORITMO' ? l : l.replace(/^\s*(?:\d+[\.\)]|[-•*])\s+/, ''); }).join('\n')); }
     if (tipo === 'NUMERICA') q.opciones = [tol];
     var e = validarP(q, n); if (e) q.error = '#' + e;
@@ -668,7 +727,7 @@
     $('edGuardar').disabled = true; $('edEstado').textContent = 'Guardando…';
     var datos = { action: 'guardarExamen', examen: { id: x.id, titulo: x.titulo, materia: x.materia, curso: x.curso, modo: x.modo, minutos: x.minutos, preguntas: x.preguntas, notaMinima: x.notaMinima,
       inicio: x.inicio, fin: x.fin, instrucciones: x.instrucciones, activo: x.activo, reglas: x.reglas, compartido: !!x.compartido },
-      preguntas: E.preguntas.map(function (q) { return { tipo: q.tipo, enunciado: q.enunciado, opciones: q.tipo === 'CORTA' ? [] : q.opciones.filter(function (o) { return o.trim(); }), correcta: q.correcta, puntos: q.puntos, explicacion: q.explicacion, tema: q.tema }; }) };
+      preguntas: E.preguntas.map(function (q) { return { tipo: q.tipo, enunciado: q.enunciado, opciones: q.tipo === 'CORTA' ? [] : q.opciones.filter(function (o) { return o.trim(); }), correcta: q.correcta, puntos: q.puntos, explicacion: q.explicacion, tema: q.tema, media: q.media || '' }; }) };
     A(datos).then(function (r) {
       var nuevo = !x.id; x.id = r.id; x.codigo = r.codigo; x.multiBanco = false;
       AVISO(nuevo ? 'Examen creado · código ' + r.codigo : 'Cambios guardados');
@@ -927,7 +986,7 @@
       ['imprimir', 'Versión en papel', ['Editar ▸ Compartir ▸ <b>Versión en papel (PDF)</b>: el examen listo para imprimir y, al final, la clave.']],
       ['candado', 'Qué hace la seguridad', ['Pantalla completa y entrega automática si sale de la ventana (o avisos antes, si lo eliges).', 'No deja copiar, pegar ni imprimir. Marca de agua con el nombre.', 'Señuelos anti-IA: si fotografían la pregunta, la IA tiende a elegir una opción incorrecta.']]
     ];
-    $('pagina').innerHTML = cabeza('Ayuda', 'Video tutorial y guía paso a paso.', '<a class="btn claro" href="guia.html" target="_blank" rel="noopener">' + ICO('libro') + ' Guía completa</a><a class="btn claro" href="material/Guia_Examen_Seguro.pdf" target="_blank" rel="noopener">' + ICO('descargar') + ' Guía en PDF</a>') +
+    $('pagina').innerHTML = cabeza('Ayuda', 'Video tutorial y guía paso a paso.', '<a class="btn primario" href="index.html?demo" target="_blank" rel="noopener">' + ICO('estrella') + ' Ver la demo</a><a class="btn claro" href="guia.html" target="_blank" rel="noopener">' + ICO('libro') + ' Guía completa</a><a class="btn claro" href="material/Guia_Examen_Seguro.pdf" target="_blank" rel="noopener">' + ICO('descargar') + ' Guía en PDF</a>') +
       '<div class="dos"><div class="tarjeta"><h3>' + ICO('video') + ' Video tutorial</h3><video id="vidAyuda" controls preload="metadata" playsinline style="width:100%;border-radius:14px;background:#0b0b14;aspect-ratio:16/9" src="material/tutorial.mp4" poster="material/tutorial.jpg"></video>' +
       '<p class="suave pequeno" id="vidNota" style="margin:8px 0 0">Cómo crear, aplicar y corregir un examen en pocos minutos.</p></div>' +
       '<div class="ayuda-pasos">' + P.map(function (p, i) { return '<details' + (i === 0 ? ' open' : '') + '><summary><span class="chip-ico">' + ICO(p[0]) + '</span>' + p[1] + '</summary><ol>' + p[2].map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ol></details>'; }).join('') + '</div></div>';

@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="es.css?v=3">
+<link rel="stylesheet" href="es.css?v=4">
 <script src="config.js?v=2"></script>
-<script src="es.js?v=5"></script>
+<script src="es.js?v=6"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 <style>
   .centro { min-height: 100vh; display: grid; place-items: center; padding: 20px 16px 90px; }
@@ -121,6 +121,20 @@
   .hueco { border: 0; border-bottom: 2px solid var(--acento); background: color-mix(in srgb, var(--acento) 8%, transparent); width: 9em; padding: 3px 8px; font: inherit; color: var(--texto); border-radius: 6px 6px 0 0; outline: none; }
   .hueco:focus { background: color-mix(in srgb, var(--acento) 16%, transparent); }
   input.numer { max-width: 240px; }
+  select.hueco { width: auto; min-width: 7em; cursor: pointer; }
+  .banco-pal { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; border-radius: 14px; background: var(--sup2); margin-bottom: 10px; }
+  .banco-pal .pal { padding: 7px 13px; border-radius: 999px; background: var(--sup-solida); border: 1px solid var(--linea); font-weight: 600; font-size: 14.5px; }
+  .banco-pal .pal.usada { opacity: .4; text-decoration: line-through; }
+  .just { min-height: 90px; margin-top: 4px; }
+  .rel2 { position: relative; display: grid; grid-template-columns: 1fr minmax(36px, 16%) 1fr; }
+  .rel2 .rcol { display: flex; flex-direction: column; justify-content: space-around; gap: 10px; }
+  .rel2 .rcol:first-of-type { grid-column: 1; } .rel2 .rcol:last-of-type { grid-column: 3; }
+  .rlin { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .rbtn { position: relative; text-align: left; padding: 11px 14px; min-height: 46px; border-radius: 14px; background: var(--sup-fuerte); border: 2px solid var(--linea); font: inherit; font-weight: 600; font-size: 15px; color: var(--texto); cursor: pointer; }
+  .rbtn.par { border-color: var(--c); }
+  .rbtn.sel { border-color: var(--acento); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 30%, transparent); }
+  .rbtn .rn { position: absolute; top: -9px; right: -9px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--c); color: #fff; font-size: 12px; display: none; place-items: center; }
+  .rbtn.par .rn { display: grid; }
   .rev .r span { white-space: pre-line; }
 </style>
 </head>
@@ -139,6 +153,7 @@
       <label class="campo"><span>Código</span><input id="codigo" class="entrada codigo-in" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="E-XXXXX"></label>
       <div class="error" id="errCodigo"></div>
       <button class="btn primario ancho" id="btnCodigo">Continuar <span id="icoSig"></span></button>
+      <button class="btn claro ancho" id="btnDemo" type="button" style="margin-top:10px">✨ Probar la demo: todos los tipos de pregunta</button>
       <div class="pie-portada suave"><span>Politécnico Cristiano James Davis · <span data-version></span></span><a href="docente.html">Soy docente</a></div>
     </div>
   </div>
@@ -253,6 +268,8 @@
     }).catch(function (e) { $('errCodigo').textContent = e.message; }).then(function () { $('btnCodigo').disabled = false; });
   };
   $('codigo').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('btnCodigo').click(); });
+  $('btnDemo').onclick = function () { $('codigo').value = 'DEMO'; $('btnCodigo').click(); };
+  if (/[?&]demo\b/.test(location.search)) $('btnDemo').click();
   $('btnVolver').onclick = function () { ver('vCodigo'); };
   $('btnInicio').onclick = function () { ver('vCodigo'); };
 
@@ -287,7 +304,7 @@
     $('eTitulo').textContent = st.ex.titulo;
     $('eMarca').textContent = nombre; $('eMarca').classList.toggle('oculto', !st.r.marcaAgua);
     $('btnEntregar').innerHTML = ICO('check') + (st.ex.modo === 'PRACTICA' ? ' Terminar y ver resultados' : ' Entregar examen');
-    pintar(); ver('vExamen'); st.activo = true;
+    pintar(); ver('vExamen'); st.activo = true; st.relSel = null; lineas(); setTimeout(lineas, 400);
     if (r.continua) AVISO('Continúas donde ibas.');
     document.body.classList.toggle('bloqueado', !!st.r.bloquearCopiar);
     setTimeout(function () { st.armado = true; if (st.pc && !enPantalla()) salida('Salió de la pantalla completa'); }, 1500);
@@ -304,13 +321,13 @@
         }).join('');
       return '<article class="pregunta vidrio" id="p' + i + '"><div class="cab"><span class="num">' + q.n + '</span><span class="suave pequeno">' + (TIPOS[q.tipo] || 'Selección') + '</span>' +
         '<span class="pts pildora">' + q.puntos + ' pt' + (q.puntos === 1 ? '' : 's') + '</span>' + (st.adelante ? '' : '<button type="button" class="marcar" data-m="' + i + '">' + ICO('bandera') + 'Revisar</button>') + '</div>' +
-        '<p class="enunciado">' + esc(q.tipo === 'COMPLETAR' ? 'Completa los espacios en blanco.' : q.enunciado) + '</p>' + ia + cuerpo + '</article>';
+        '<p class="enunciado">' + esc(q.tipo === 'COMPLETAR' ? 'Completa los espacios en blanco.' : q.tipo === 'PALABRAS' ? 'Completa con las palabras del banco.' : q.enunciado) + '</p>' + (q.media ? MEDIA(q.media) : '') + ia + cuerpo + '</article>';
     }).join('') + (st.unaPag ? '<div class="pag-nav">' + (st.adelante ? '<span></span>' : '<button type="button" class="btn claro" id="pAnt">' + ICO('atras') + ' Anterior</button>') +
       '<span class="cuenta" id="pCuenta"></span><button type="button" class="btn primario" id="pSig">Siguiente ' + ICO('adelante') + '</button></div>' : '');
     if (st.adelante) $('ePregs').insertAdjacentHTML('afterbegin', '<div class="aviso-adelante">' + ICO('alerta') + ' Solo hacia adelante: cuando pases a la siguiente pregunta no podrás volver.</div>');
     $('ePregs').classList.toggle('unapag', !!st.unaPag);
     $('eNumeros').innerHTML = st.preguntas.map(function (q, i) { return '<button type="button" data-ir="' + i + '">' + q.n + '</button>'; }).join('');
-    progreso(); activarArrastre(); if (st.unaPag) mostrarPag();
+    progreso(); activarArrastre(); if (st.unaPag) mostrarPag(); else lineas();
   }
   function mostrarPag() {
     var n = st.preguntas.length;
@@ -319,7 +336,7 @@
     if ($('pAnt')) $('pAnt').disabled = st.pag === 0;
     $('pSig').classList.toggle('oculto', st.pag >= n - 1);
     document.querySelectorAll('#eNumeros button').forEach(function (b) { var i = Number(b.dataset.ir); b.disabled = st.adelante && i !== st.pag; b.classList.toggle('actual', i === st.pag); });
-    window.scrollTo(0, 0);
+    window.scrollTo(0, 0); lineas();
   }
   function irPag(i) {
     if (!st.unaPag || i < 0 || i >= st.preguntas.length || (st.adelante && i < st.pag)) return;
@@ -334,7 +351,7 @@
     }
   });
   $('ePregs').addEventListener('change', function (e) {
-    if (!st.activo || e.target.type !== 'radio') return;
+    if (!st.activo || e.target.type !== 'radio' || e.target.name.charAt(0) !== 'q') return;
     var i = Number(e.target.name.slice(1)); st.resp[i] = Number(e.target.value);
     document.querySelectorAll('.op[data-i="' + i + '"]').forEach(function (l) { l.classList.toggle('sel', Number(l.dataset.j) === st.resp[i]); });
     cambio();
@@ -350,7 +367,8 @@
   $('eNumeros').addEventListener('click', function (e) { var b = e.target.closest('[data-ir]'); if (!b) return; if (st.unaPag) irPag(Number(b.dataset.ir)); else $('p' + b.dataset.ir).scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   /* ---------- Tipos dinámicos: ordenar, algoritmo, diagrama, relacionar, clasificar, completar, numérica ---------- */
   var TIPOS = { MC: 'Selección', VF: 'Verdadero o falso', CORTA: 'Respuesta corta', ORDENAR: 'Ordenar los pasos', ALGORITMO: 'Armar el algoritmo', FLUJO: 'Diagrama de flujo',
-    RELACIONAR: 'Relacionar', CLASIFICAR: 'Clasificar', COMPLETAR: 'Completar', NUMERICA: 'Respuesta numérica' };
+    RELACIONAR: 'Relacionar', CLASIFICAR: 'Clasificar', COMPLETAR: 'Completar', NUMERICA: 'Respuesta numérica', VFJ: 'Verdadero o falso, justificado', PALABRAS: 'Completar con palabras' };
+  var COLORES = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#0EA5E9', '#A855F7', '#EC4899', '#14B8A6'];
   var ORDEN = ['ORDENAR', 'ALGORITMO', 'FLUJO'];
   function forma(t) { var s = String(t).trim().toLowerCase(); if (/^(inicio|fin)\b/.test(s)) return 'term'; if (/^(leer|escribir|mostrar|imprimir|ingresar|entrada|salida)\b/.test(s)) return 'io'; if (/\?$|^¿|^(si|mientras|repetir)\b/.test(s)) return 'dec'; return 'proc'; }
   function cuerpoNuevo(q, i) {
@@ -366,11 +384,19 @@
             '<span class="fl"><button type="button" data-mv="-1" aria-label="Subir">' + ICO('arriba') + '</button><button type="button" data-mv="1" aria-label="Bajar">' + ICO('abajo') + '</button></span></div>';
         }).join('') + '</div>';
     }
-    if (q.tipo === 'RELACIONAR') return '<p class="ayuda-tipo">' + ICO('enlace') + 'Elige la pareja de cada elemento.</p><div class="rel">' + q.izq.map(function (a, j) {
-      var v = Array.isArray(r) ? r[j] : null;
-      return '<div class="rel-f"><span class="izq">' + esc(a) + '</span><span class="flecha">→</span><select class="entrada rel-s" data-i="' + i + '" data-j="' + j + '"><option value="">Elige…</option>' +
-        q.opciones.map(function (o, x) { return '<option value="' + x + '"' + (v === x ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></div>';
-    }).join('') + '</div>';
+    if (q.tipo === 'RELACIONAR') return '<p class="ayuda-tipo">' + ICO('enlace') + 'Toca un elemento de la izquierda y luego su pareja de la derecha: se traza una línea. Para cambiarla, toca otra pareja.</p>' +
+      '<div class="rel2" data-i="' + i + '"><div class="rcol">' + q.izq.map(function (a, j) { return '<button type="button" class="rbtn ri" data-j="' + j + '">' + esc(a) + '<b class="rn"></b></button>'; }).join('') +
+      '</div><svg class="rlin" aria-hidden="true"></svg><div class="rcol">' + q.opciones.map(function (o, x) { return '<button type="button" class="rbtn rd" data-x="' + x + '">' + esc(o) + '<b class="rn"></b></button>'; }).join('') + '</div></div>';
+    if (q.tipo === 'VFJ') { var vj = r || {};
+      return q.opciones.map(function (o, j) {
+        return '<label class="op' + (vj.v === j ? ' sel' : '') + '" data-i="' + i + '" data-j="' + j + '"><input type="radio" class="vfj-r" name="v' + i + '" data-i="' + i + '" value="' + j + '"' + (vj.v === j ? ' checked' : '') + '><span class="letra">' + String.fromCharCode(65 + j) + '</span><span>' + esc(o) + '</span></label>';
+      }).join('') + '<label class="campo" style="margin-top:8px"><span>Justifica tu respuesta (¿por qué?)</span><textarea class="entrada just" data-i="' + i + '" maxlength="600" spellcheck="false" placeholder="Explica con tus palabras">' + esc(vj.j || '') + '</textarea></label>'; }
+    if (q.tipo === 'PALABRAS') {
+      var hp = Array.isArray(r) ? r : [], trozos = esc(q.enunciado).split('[[]]');
+      return '<p class="ayuda-tipo">' + ICO('lista') + 'Elige en cada espacio la palabra correcta del banco.</p><div class="banco-pal" data-i="' + i + '">' + q.opciones.map(function (w) { return '<span class="pal' + (hp.indexOf(w) >= 0 ? ' usada' : '') + '">' + esc(w) + '</span>'; }).join('') + '</div>' +
+        '<div class="completar">' + trozos.map(function (seg, j) {
+          return seg + (j < trozos.length - 1 ? '<select class="hueco" data-i="' + i + '" data-j="' + j + '" aria-label="Espacio ' + (j + 1) + '"><option value="">…</option>' + q.opciones.map(function (w) { return '<option' + (hp[j] === w ? ' selected' : '') + '>' + esc(w) + '</option>'; }).join('') + '</select>' : ''); }).join('') + '</div>';
+    }
     if (q.tipo === 'CLASIFICAR') {
       var a = Array.isArray(r) ? r : [];
       var chips = function (c) { return q.opciones.map(function (o, j) { return j; }).filter(function (j) { return c === null ? a[j] === null || a[j] === undefined : a[j] === c; })
@@ -409,10 +435,43 @@
     var cubo = e.target.closest('.cubo');
     if (cubo) { var box = cubo.closest('.clas'), sel = box.querySelector('.chip-it.sel'); if (sel) { sel.classList.remove('sel'); cubo.querySelector('.cub').appendChild(sel); leerClas(box); } }
   });
+  /* Relacionar con líneas: toca izquierda y derecha (en cualquier orden); se dibuja una línea de color */
+  $('ePregs').addEventListener('click', function (e) {
+    var b = e.target.closest('.rbtn'); if (!b || !st.activo) return;
+    var box = b.closest('.rel2'), i = Number(box.dataset.i), q = st.preguntas[i], arr = Array.isArray(st.resp[i]) ? st.resp[i].slice() : q.izq.map(function () { return null; });
+    var sel = st.relSel && st.relSel.i === i ? st.relSel : null, lado = b.classList.contains('ri') ? 'i' : 'd', v = Number(lado === 'i' ? b.dataset.j : b.dataset.x);
+    if (sel && sel.lado !== lado) {
+      var j = lado === 'i' ? v : sel.v, x = lado === 'i' ? sel.v : v;
+      arr[j] = arr[j] === x ? null : x; st.relSel = null;
+      if (arr.some(function (y) { return y !== null; })) st.resp[i] = arr; else delete st.resp[i];
+      cambio();
+    } else st.relSel = sel && sel.lado === lado && sel.v === v ? null : { i: i, lado: lado, v: v };
+    lineas();
+  });
+  function lineas() {
+    document.querySelectorAll('#ePregs .rel2').forEach(function (box) {
+      var i = Number(box.dataset.i), arr = st.resp[i] || [], sel = st.relSel && st.relSel.i === i ? st.relSel : null, B = box.getBoundingClientRect(), svg = '';
+      var izq = box.querySelectorAll('.ri'), der = box.querySelectorAll('.rd');
+      der.forEach(function (d) { d.classList.remove('par'); d.querySelector('.rn').textContent = ''; d.classList.toggle('sel', !!sel && sel.lado === 'd' && sel.v === Number(d.dataset.x)); });
+      izq.forEach(function (a) {
+        var j = Number(a.dataset.j), x = arr[j], c = COLORES[j % COLORES.length], par = x !== null && x !== undefined && der[x];
+        a.classList.toggle('par', !!par); a.classList.toggle('sel', !!sel && sel.lado === 'i' && sel.v === j); a.style.setProperty('--c', c); a.querySelector('.rn').textContent = j + 1;
+        if (!par) return;
+        var d = der[x], L = a.getBoundingClientRect(), R = d.getBoundingClientRect(), rn = d.querySelector('.rn');
+        d.classList.add('par'); d.style.setProperty('--c', c); rn.textContent = rn.textContent ? rn.textContent + ',' + (j + 1) : j + 1;
+        if (!L.width || !B.width) return;   // pregunta oculta (modo una por página): se dibuja al mostrarla
+        var x1 = L.right - B.left, y1 = L.top + L.height / 2 - B.top, x2 = R.left - B.left, y2 = R.top + R.height / 2 - B.top;
+        svg += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + c + '" stroke-width="3" stroke-linecap="round"/><circle cx="' + x1 + '" cy="' + y1 + '" r="5" fill="' + c + '"/><circle cx="' + x2 + '" cy="' + y2 + '" r="5" fill="' + c + '"/>';
+      });
+      box.querySelector('.rlin').innerHTML = svg;
+    });
+  }
+  window.addEventListener('resize', function () { clearTimeout(st.lineasT); st.lineasT = setTimeout(lineas, 120); });
+  /* V o F justificada: la elección y el texto se guardan juntos */
   $('ePregs').addEventListener('change', function (e) {
-    if (!st.activo || !e.target.classList.contains('rel-s')) return;
-    var i = Number(e.target.dataset.i), arr = [].map.call(document.querySelectorAll('.rel-s[data-i="' + i + '"]'), function (s) { return s.value === '' ? null : Number(s.value); });
-    if (arr.some(function (x) { return x !== null; })) st.resp[i] = arr; else delete st.resp[i];
+    if (!st.activo || !e.target.classList.contains('vfj-r')) return;
+    var i = Number(e.target.dataset.i), x = Object.assign({ v: null, j: '' }, st.resp[i]); x.v = Number(e.target.value); st.resp[i] = x;
+    document.querySelectorAll('.op[data-i="' + i + '"]').forEach(function (l) { l.classList.toggle('sel', Number(l.dataset.j) === x.v); });
     cambio();
   });
   $('ePregs').addEventListener('input', function (e) {
@@ -420,7 +479,10 @@
     var el = e.target, i = Number(el.dataset.i);
     if (el.classList.contains('numer')) { var v = el.value.replace(',', '.').trim(); if (v && !isNaN(Number(v))) st.resp[i] = v; else delete st.resp[i]; cambio(); }
     if (el.classList.contains('hueco')) { var arr = [].map.call(document.querySelectorAll('.hueco[data-i="' + i + '"]'), function (x) { return x.value.trim(); });
-      if (arr.some(Boolean)) st.resp[i] = arr; else delete st.resp[i]; cambio(); }
+      if (arr.some(Boolean)) st.resp[i] = arr; else delete st.resp[i]; cambio();
+      document.querySelectorAll('.banco-pal[data-i="' + i + '"] .pal').forEach(function (p) { p.classList.toggle('usada', arr.indexOf(p.textContent) >= 0); }); }
+    if (el.classList.contains('just')) { var x = Object.assign({ v: null, j: '' }, st.resp[i]); x.j = el.value.trim();
+      if (x.v === null && !x.j) delete st.resp[i]; else st.resp[i] = x; cambio(); }
   });
   function cambio() { progreso(); clearTimeout(st.guardarT); st.guardarT = setTimeout(guardar, 1200); }
   function progreso() {
@@ -487,7 +549,7 @@
         var c = r.nota >= 70 ? 'var(--verde)' : r.nota >= 50 ? 'var(--amarillo)' : 'var(--rojo)';
         $('fNota').innerHTML = '<div class="anillo" style="--p:' + r.nota + ';--c:' + c + '"><div><span><b>' + r.nota + '</b><small>de 100</small></span></div></div>' +
           '<p style="text-align:center;margin:0 0 6px"><b>' + (r.pendiente ? '📝 Nota provisional' : r.aprobado ? '🎉 ¡Muy bien!' : '💪 Sigue practicando') + '</b> · ' + r.correctas + ' de ' + r.total + ' correctas</p>' +
-          (r.pendiente ? '<p class="suave pequeno" style="text-align:center;margin:0">Tu profesor corregirá ' + r.pendiente + ' respuesta(s) corta(s) y tu nota puede cambiar.</p>' : '');
+          (r.pendiente ? '<p class="suave pequeno" style="text-align:center;margin:0">Tu profesor corregirá ' + r.pendiente + ' respuesta(s) escrita(s) y tu nota puede cambiar.</p>' : '');
       } else $('fNota').innerHTML = '<p class="suave" style="text-align:center">Tu profesor te dará la nota.</p>';
       if (r.revision) $('fRev').innerHTML = '<h3 style="margin-top:18px">' + ICO('lista') + ' Revisión</h3>' + r.revision.map(function (q) {
         return '<div class="rev' + (q.bien || q.pendiente ? '' : ' mal') + '"><b>' + q.n + '. ' + esc(q.enunciado) + '</b>' +
@@ -522,7 +584,14 @@
   document.addEventListener('fullscreenchange', function () { if (st.pc && !enPantalla()) salida('Salió de la pantalla completa'); });
   document.addEventListener('webkitfullscreenchange', function () { if (st.pc && !enPantalla()) salida('Salió de la pantalla completa'); });
   document.addEventListener('visibilitychange', function () { if (document.hidden) salida('Cambió de pestaña o minimizó'); });
-  window.addEventListener('blur', function () { salida('Salió de la ventana'); });
+  // Al tocar un video de YouTube o Drive el foco pasa a ese recuadro: no es salida. hasFocus() sigue en true mientras el foco esté dentro de la página.
+  function revisarFoco() {
+    if (document.hasFocus()) { st.fueraFoco = false; st.tuvoFoco = true; return; }
+    // solo cuenta si estuvo dentro y luego salió
+    if (!st.fueraFoco && st.tuvoFoco && st.activo && st.armado) { st.fueraFoco = true; salida('Salió de la ventana'); }
+  }
+  window.addEventListener('blur', function () { setTimeout(revisarFoco, 60); });
+  setInterval(revisarFoco, 1000);
   window.addEventListener('pagehide', function () {
     if (!st.activo || st.terminado || !st.r.salirEntrega) return;
     st.terminado = true;

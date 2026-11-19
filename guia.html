@@ -6,8 +6,8 @@
 <title>Guía de Examen Seguro</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="es.css?v=3">
-<script src="es.js?v=5"></script>
+<link rel="stylesheet" href="es.css?v=4">
+<script src="es.js?v=6"></script>
 <style>
   .guia { max-width: 900px; margin: 0 auto; padding: 28px 16px 80px; }
   .portada { padding: 30px 28px; border-radius: 26px; color: #fff; background: var(--marca); position: relative; overflow: hidden; margin-bottom: 22px; }
@@ -38,7 +38,7 @@
 
   <nav class="indice no-imprimir">
     <a href="#entrar">1. Entrar por primera vez</a><a href="#crear">2. Crear un examen</a><a href="#preguntas">3. Escribir o pegar preguntas</a>
-    <a href="#dinamicas">3b. Preguntas dinámicas</a><a href="#reglas">4. Elegir las restricciones</a><a href="#aplicar">5. Aplicarlo en el aula</a><a href="#corregir">6. Corregir respuestas cortas</a>
+    <a href="#dinamicas">3b. Preguntas dinámicas</a><a href="#media">3c. Imagen, video y audio</a><a href="#ayudante">3d. Demo y Ayudante</a><a href="#reglas">4. Elegir las restricciones</a><a href="#aplicar">5. Aplicarlo en el aula</a><a href="#corregir">6. Corregir respuestas cortas</a>
     <a href="#resultados">7. Resultados, Excel y PDF</a><a href="#reportes">8. Reportes por curso</a><a href="#banco">9. Banco de exámenes</a>
     <a href="#papel">10. Versión en papel</a><a href="#estudiante">11. Lo que ve el estudiante</a><a href="#coordinacion">12. Coordinación</a><a href="#preguntas-f">13. Preguntas frecuentes</a>
   </nav>
@@ -94,17 +94,19 @@ Respuesta: espacio de memoria que guarda un dato</pre>
 
   <section class="tarjeta" id="dinamicas">
     <h2>3b. Preguntas dinámicas</h2>
-    <p>Además de selección, verdadero o falso y respuesta corta, hay siete tipos que se califican solos y dan <b>puntos parciales</b> (cada parte bien suma):</p>
+    <p>Además de selección, verdadero o falso y respuesta corta, hay estos tipos. Casi todos se califican solos y dan <b>puntos parciales</b> (cada parte bien suma):</p>
     <table class="tabla">
       <thead><tr><th>Tipo</th><th>Qué hace el estudiante</th><th>Cómo lo escribes</th></tr></thead>
       <tbody>
         <tr><td>Ordenar pasos</td><td>Arrastra los pasos (o usa las flechas) al orden correcto.</td><td>Un paso por línea, en orden.</td></tr>
         <tr><td>Armar algoritmo</td><td>Ordena líneas de pseudocódigo (se ve como código, con sangría).</td><td>Una línea por renglón, en orden; la sangría con espacios.</td></tr>
         <tr><td>Diagrama de flujo</td><td>Arma el diagrama con bloques de colores y flechas.</td><td>Un bloque por línea. La forma sale sola: Inicio/Fin, Leer/Escribir, «¿…?» o «Si…» = decisión.</td></tr>
-        <tr><td>Relacionar columnas</td><td>Elige la pareja de cada elemento.</td><td>Una pareja por línea: <code>CPU = Procesa los datos</code></td></tr>
+        <tr><td>Relacionar columnas (con líneas)</td><td>Toca un elemento de la izquierda y su pareja de la derecha: se traza una línea de color.</td><td>Una pareja por línea: <code>CPU = Procesa los datos</code></td></tr>
         <tr><td>Clasificar en grupos</td><td>Arrastra cada elemento a su grupo (o lo toca y toca el grupo).</td><td>Un grupo por línea: <code>Hardware: Teclado, Monitor</code></td></tr>
         <tr><td>Completar espacios</td><td>Escribe en los espacios en blanco del texto o del código.</td><td>Respuestas entre corchetes dobles: <code>se usa [[Escribir|Mostrar]]</code></td></tr>
+        <tr><td>Completar con banco de palabras</td><td>Elige en cada espacio la palabra correcta de un banco (con palabras de relleno).</td><td>La oración con <code>[[palabra]]</code> y abajo las palabras de relleno.</td></tr>
         <tr><td>Respuesta numérica</td><td>Escribe un número.</td><td>La respuesta y un margen (±) opcional.</td></tr>
+        <tr><td>V o F con justificación</td><td>Elige V o F y explica por qué.</td><td>Marca V o F. La elección vale la mitad y se califica sola; la justificación la corriges tú en «Por corregir».</td></tr>
       </tbody>
     </table>
     <h3>Pegarlas de un golpe</h3>
@@ -129,8 +131,36 @@ Para mostrar datos se usa [[Escribir]] y para pedirlos [[Leer]].
 Tipo: numérica
 ¿Cuánto es 7 / 2?
 Respuesta: 3.5
-Tolerancia: 0.01</pre>
+Tolerancia: 0.01
+
+Tipo: palabras
+El [[teclado]] es de entrada y la [[impresora]] es de salida.
+Relleno: memoria, disco
+
+Tipo: justifica
+La memoria RAM guarda los datos al apagar la computadora.
+Respuesta: F
+Explicación: La RAM es volátil.</pre>
     <div class="nota">Al estudiante siempre le salen desordenados. En la versión en papel salen como «numera del 1 al N», columnas con letras o espacios en blanco, con su clave.</div>
+  </section>
+
+  <section class="tarjeta" id="media">
+    <h2>3c. Imagen, video y audio en una pregunta</h2>
+    <p>Cualquier pregunta puede llevar una imagen, un video o un audio. Así haces «Observa la imagen y elige», «Analiza esta imagen y contesta», «Mira el video y responde» o «Escucha y responde» (ideal para Inglés).</p>
+    <ol>
+      <li>En la pregunta abre <b>Imagen, video o audio</b>.</li>
+      <li><b>Subir imagen</b>: una foto o captura de tu equipo. Se achica sola para que quepa.</li>
+      <li>O pega un <b>enlace</b>: imagen de internet, video de YouTube, archivo de Google Drive o un MP3. El tipo (imagen, video o audio) se elige solo; cámbialo si hace falta.</li>
+      <li>De Google Drive: comparte el archivo como «Cualquier persona con el enlace».</li>
+    </ol>
+    <p>Para pegar muchas: agrega una línea <code>Imagen: https://…</code> (o <code>Video:</code>, <code>Audio:</code>) dentro de la pregunta.</p>
+    <div class="nota">El estudiante puede tocar la imagen para verla más grande. Tocar el video no cuenta como salida de la ventana.</div>
+  </section>
+
+  <section class="tarjeta" id="ayudante">
+    <h2>3d. Examen demo y Ayudante</h2>
+    <p><b>Demo:</b> en la página de inicio, el botón <b>«Probar la demo»</b> (o el código <code>DEMO</code>) abre un examen de práctica con un ejemplo de cada tipo de pregunta. Lo puede abrir cualquiera, no cuenta como nota y se borra solo. También está en el Banco: «Usar en mi curso» lo copia para que lo edites.</p>
+    <p><b>Ayudante:</b> el botón morado <b>«Ayudante»</b> del panel (abajo a la derecha) te pregunta qué quieres hacer y te señala, paso a paso, dónde tocar: crear un examen, agregar preguntas con imagen o video, usar el banco, aplicar el examen, ver resultados, corregir, dar más tiempo, reportes e imprimir.</p>
   </section>
   <section class="tarjeta" id="reglas">
     <h2>4. Elegir las restricciones</h2>

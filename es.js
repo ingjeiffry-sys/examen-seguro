@@ -91,5 +91,21 @@
 })();
 
 /* Versión visible de la plataforma: llena los elementos [data-version]. */
-window.ES_VERSION = '2.3';
+window.ES_VERSION = '2.4';
 document.addEventListener('DOMContentLoaded', function () { document.querySelectorAll('[data-version]').forEach(function (e) { e.textContent = 'v' + window.ES_VERSION; }); });
+
+/* Imagen, video o audio de una pregunta («imagen|video|audio:» + enlace). Acepta enlaces de YouTube y Google Drive. */
+window.TIPO_MEDIA = function (url) { return /youtu\.?be|\.(mp4|webm|mov)(\?|$)/i.test(url) ? 'video' : /\.(mp3|wav|ogg|m4a)(\?|$)/i.test(url) ? 'audio' : 'imagen'; };
+window.MEDIA = function (m) {
+  var s = String(m || ''), k = s.indexOf(':'); if (k < 0) return '';
+  var tipo = s.slice(0, k), url = s.slice(k + 1);
+  if (!/^(https:\/\/|data:image\/)/.test(url)) return '';
+  var drive = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=)([\w-]{20,})/), yt = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})/);
+  if (tipo === 'imagen') return '<figure class="media"><img src="' + esc(drive ? 'https://drive.google.com/thumbnail?id=' + drive[1] + '&sz=w1600' : url) + '" alt="Imagen de la pregunta" loading="lazy" draggable="false"><figcaption>Toca la imagen para verla más grande</figcaption></figure>';
+  if (tipo === 'video' && yt) return '<figure class="media video"><iframe src="https://www.youtube-nocookie.com/embed/' + yt[1] + '?rel=0&modestbranding=1" title="Video de la pregunta" allow="encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" loading="lazy"></iframe></figure>';
+  if (drive && (tipo === 'video' || tipo === 'audio')) return '<figure class="media ' + tipo + '"><iframe src="https://drive.google.com/file/d/' + drive[1] + '/preview" title="Archivo de la pregunta" loading="lazy"></iframe></figure>';
+  if (tipo === 'video') return '<figure class="media video"><video controls preload="metadata" playsinline controlslist="nodownload nofullscreen" disablepictureinpicture src="' + esc(url) + '"></video></figure>';
+  if (tipo === 'audio') return '<figure class="media audio"><audio controls preload="metadata" controlslist="nodownload" src="' + esc(url) + '"></audio></figure>';
+  return '';
+};
+document.addEventListener('click', function (e) { var f = e.target.closest && e.target.closest('.media img'); if (f) f.parentNode.classList.toggle('grande'); });
