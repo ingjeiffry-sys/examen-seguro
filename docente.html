@@ -362,10 +362,10 @@
 
   /* ---------- Editor ---------- */
   var PRESETS = {
-    estricto: { t: 'Examen estricto', i: 'candado', d: 'Pantalla completa, se entrega al salir, sin copiar, señuelos anti-IA, 1 intento.', r: { pantallaCompleta: true, salirEntrega: true, toleranciaSalidas: 0, bloquearCopiar: true, senuelosIA: true, marcaAgua: true, permitirCelular: false, barajarPreguntas: true, barajarOpciones: true, mostrarNota: true, mostrarRespuestas: false, intentos: 1 } },
-    flexible: { t: 'Examen con avisos', i: 'alerta', d: 'Como el estricto, pero da 2 avisos antes de entregar si sale.', r: { pantallaCompleta: true, salirEntrega: true, toleranciaSalidas: 2, bloquearCopiar: true, senuelosIA: true, marcaAgua: true, permitirCelular: false, barajarPreguntas: true, barajarOpciones: true, mostrarNota: true, mostrarRespuestas: false, intentos: 1 } },
-    practica: { t: 'Práctica guiada', i: 'libro', d: 'Intentos libres y al final ve las respuestas con explicación.', r: { pantallaCompleta: true, salirEntrega: true, toleranciaSalidas: 0, bloquearCopiar: true, senuelosIA: false, marcaAgua: false, permitirCelular: true, barajarPreguntas: true, barajarOpciones: true, mostrarNota: true, mostrarRespuestas: true, intentos: 0 } },
-    libre: { t: 'Libre (tarea en casa)', i: 'movil', d: 'Sin pantalla completa; solo registra las salidas. Sirve en celular.', r: { pantallaCompleta: false, salirEntrega: false, toleranciaSalidas: 0, bloquearCopiar: true, senuelosIA: true, marcaAgua: false, permitirCelular: true, barajarPreguntas: true, barajarOpciones: true, mostrarNota: true, mostrarRespuestas: false, intentos: 1 } }
+    estricto: { t: 'Examen estricto', i: 'candado', d: 'Pantalla completa, se entrega al salir, sin copiar, señuelos anti-IA, 1 intento.', r: { pantallaCompleta: true, salirEntrega: true, toleranciaSalidas: 0, bloquearCopiar: true, senuelosIA: true, marcaAgua: true, permitirCelular: false, barajarPreguntas: true, barajarOpciones: true, mostrarNota: true, mostrarRespuestas: false, intentos: 1, unaPorPagina: false, soloAdelante: false } },
+    flexible: { t: 'Examen con avisos', i: 'alerta', d: 'Como el estricto, pero da 2 avisos antes de entregar si sale.', r: { pantallaCompleta: true, salirEntrega: true, toleranciaSalidas: 2, bloquearCopiar: true, senuelosIA: true, marcaAgua: true, permitirCelular: false, barajarPreguntas: true, barajarOpciones: true, mostrarNota: true, mostrarRespuestas: false, intentos: 1, unaPorPagina: false, soloAdelante: false } },
+    practica: { t: 'Práctica guiada', i: 'libro', d: 'Intentos libres y al final ve las respuestas con explicación.', r: { pantallaCompleta: true, salirEntrega: true, toleranciaSalidas: 0, bloquearCopiar: true, senuelosIA: false, marcaAgua: false, permitirCelular: true, barajarPreguntas: true, barajarOpciones: true, mostrarNota: true, mostrarRespuestas: true, intentos: 0, unaPorPagina: false, soloAdelante: false } },
+    libre: { t: 'Libre (tarea en casa)', i: 'movil', d: 'Sin pantalla completa; solo registra las salidas. Sirve en celular.', r: { pantallaCompleta: false, salirEntrega: false, toleranciaSalidas: 0, bloquearCopiar: true, senuelosIA: true, marcaAgua: false, permitirCelular: true, barajarPreguntas: true, barajarOpciones: true, mostrarNota: true, mostrarRespuestas: false, intentos: 1, unaPorPagina: false, soloAdelante: false } }
   };
   var REGLAS = [
     ['pantallaCompleta', 'pantalla', 'azul', 'Pantalla completa', 'Se abre ocupando toda la pantalla, sin barra de direcciones ni pestañas.'],
@@ -375,6 +375,8 @@
     ['senuelosIA', 'robot', 'amarillo', 'Señuelos anti-IA', 'Agrega una nota gris que apunta a una opción incorrecta, para quien fotografíe y le pregunte a una IA.'],
     ['marcaAgua', 'marca', '', 'Marca de agua con el nombre', 'El nombre del estudiante aparece de fondo (desanima las fotos).'],
     ['permitirCelular', 'movil', 'verde', 'Permitir celulares', 'Si el equipo no tiene pantalla completa (iPhone), deja entrar igual y vigila las salidas.'],
+    ['unaPorPagina', 'lista', 'morado', 'Una pregunta por página', 'Cada pregunta sale sola en pantalla y se pasa con «Siguiente». Apagado: todas en una sola página.'],
+    ['soloAdelante', 'adelante', 'rojo', 'Solo hacia adelante', 'Al pasar a la siguiente no puede volver a la anterior (el servidor bloquea los cambios). Apagado: puede ir y volver.'],
     ['barajarPreguntas', 'barajar', 'morado', 'Preguntas al azar', 'Cada estudiante recibe las preguntas en otro orden (y otras, si muestras menos que el banco).'],
     ['barajarOpciones', 'barajar', 'morado', 'Opciones al azar', 'Cambia el orden de las opciones A, B, C, D para cada estudiante.'],
     ['mostrarNota', 'premio', 'verde', 'Mostrar la nota al terminar', 'El estudiante ve su nota apenas entrega.'],
@@ -540,11 +542,11 @@
       '<h3>' + ICO('ajustes') + ' Una por una</h3>' + REGLAS.map(function (g) {
         var ctrl = g[5] === 'n' ? '<div class="contador" data-num="' + g[0] + '"><button type="button" data-d="-1">−</button><span>' + (Number(r[g[0]]) || 0) + '</span><button type="button" data-d="1">+</button></div>'
           : '<label class="interruptor"><input type="checkbox" data-regla="' + g[0] + '"' + (r[g[0]] ? ' checked' : '') + '><i></i></label>';
-        var apagado = g[0] === 'toleranciaSalidas' && !r.salirEntrega;
+        var apagado = g[0] === 'toleranciaSalidas' && !r.salirEntrega || g[0] === 'soloAdelante' && !r.unaPorPagina;
         return '<div class="regla-ed" style="' + (apagado ? 'opacity:.5' : '') + '"><span class="chip-ico ' + g[2] + '">' + ICO(g[1]) + '</span><div class="txt"><b>' + g[3] + '</b><span class="d">' + g[4] + '</span></div>' + ctrl + '</div>';
       }).join('');
     var c = $('edCuerpo');
-    c.onchange = function (e) { var k = e.target.dataset.regla; if (k) { r[k] = e.target.checked; if (k === 'salirEntrega') pasoReglas(); } };
+    c.onchange = function (e) { var k = e.target.dataset.regla; if (k) { r[k] = e.target.checked; if (k === 'salirEntrega' || k === 'unaPorPagina') pasoReglas(); } };
     c.onclick = function (e) {
       var p = e.target.closest('[data-preset]'); if (p) { E.ex.reglas = r = JSON.parse(JSON.stringify(PRESETS[p.dataset.preset].r)); AVISO('Atajo aplicado: ' + PRESETS[p.dataset.preset].t); pasoReglas(); return; }
       var b = e.target.closest('[data-d]'); if (!b) return;
