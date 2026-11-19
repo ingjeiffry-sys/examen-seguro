@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="640" height="400" rx="24" fill="#F1F5FF"/>
+  <g stroke="#6366F1" stroke-width="4" stroke-linecap="round">
+    <line x1="320" y1="200" x2="120" y2="90"/><line x1="320" y1="200" x2="520" y2="90"/>
+    <line x1="320" y1="200" x2="100" y2="300"/><line x1="320" y1="200" x2="540" y2="300"/>
+    <line x1="320" y1="200" x2="320" y2="345"/>
+  </g>
+  <g id="pc">
+    <rect x="-38" y="-30" width="76" height="50" rx="6" fill="#1E293B"/><rect x="-32" y="-24" width="64" height="38" rx="3" fill="#38BDF8"/>
+    <rect x="-8" y="20" width="16" height="8" fill="#1E293B"/><rect x="-24" y="27" width="48" height="6" rx="3" fill="#1E293B"/>
+  </g>
+  <use href="#pc" x="120" y="80"/><use href="#pc" x="520" y="80"/><use href="#pc" x="100" y="290"/><use href="#pc" x="540" y="290"/><use href="#pc" x="320" y="340"/>
+  <rect x="250" y="172" width="140" height="56" rx="10" fill="#F59E0B" stroke="#B45309" stroke-width="3"/>
+  <g fill="#FFF7E6"><circle cx="272" cy="214" r="5"/><circle cx="292" cy="214" r="5"/><circle cx="312" cy="214" r="5"/><circle cx="332" cy="214" r="5"/><circle cx="352" cy="214" r="5"/><circle cx="372" cy="214" r="5"/></g>
+  <text x="320" y="198" text-anchor="middle" font-size="18" font-weight="700" fill="#3B2300">? ? ?</text>
+</svg>
