@@ -89,3 +89,7 @@
   window.DURACION = function (s) { s = Number(s) || 0; if (!s) return '—'; var m = Math.floor(s / 60), r = s % 60; return m ? m + ' min ' + (r ? r + ' s' : '') : r + ' s'; };
   window.FECHA = function (iso) { if (!iso) return '—'; var d = String(iso).replace(' ', 'T'); var p = d.split('T'); var f = p[0].split('-'); return f[2] + '/' + f[1] + (p[1] ? ' ' + p[1].slice(0, 5) : ''); };
 })();
+
+/* Versión visible de la plataforma: llena los elementos [data-version]. */
+window.ES_VERSION = '2.2';
+document.addEventListener('DOMContentLoaded', function () { document.querySelectorAll('[data-version]').forEach(function (e) { e.textContent = 'v' + window.ES_VERSION; }); });
