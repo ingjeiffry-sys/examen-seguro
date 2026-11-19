@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="es.css?v=2">
+<link rel="stylesheet" href="es.css?v=3">
 <script src="config.js?v=2"></script>
-<script src="es.js?v=2"></script>
+<script src="es.js?v=3"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   /* Acceso */
@@ -103,6 +103,22 @@
   .cargando { display: grid; place-items: center; padding: 60px; color: var(--suave); }
   .girar { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--sup2); border-top-color: var(--acento); animation: gira 0.8s linear infinite; }
   @keyframes gira { to { transform: rotate(360deg); } }
+  /* Corrección manual */
+  .corr { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 14px; background: var(--sup-fuerte); border: 1px solid var(--linea); margin-bottom: 8px; }
+  .corr.pend { border-left: 5px solid var(--amarillo); }
+  .corr .txt div { white-space: pre-line; margin-top: 2px; }
+  .corr .pts { display: flex; gap: 6px; align-items: center; }
+  .corr .pts button { min-width: 42px; height: 38px; border-radius: 12px; border: 1px solid var(--linea); background: var(--sup-solida); font-weight: 800; cursor: pointer; color: var(--texto); }
+  .corr .pts button.on { background: var(--acento); border-color: var(--acento); color: #fff; }
+  .corr .pts input { width: 70px; padding: 8px; border-radius: 12px; border: 1px solid var(--linea); background: var(--sup-solida); color: var(--texto); font-weight: 700; }
+  @media (max-width: 640px) { .corr { grid-template-columns: 1fr; } }
+  /* Banco y reportes */
+  .examen-t.tecnico .franja { background: linear-gradient(90deg, #0EA5E9, #6366F1); } .examen-t.academico .franja { background: linear-gradient(90deg, #F59E0B, #EC4899); }
+  .tabla td.n { text-align: center; font-weight: 700; } .tabla td.n.bajo { color: var(--rojo); } .tabla td.n.medio { color: var(--amarillo); }
+  .tabla th.rot { max-width: 120px; white-space: normal; font-size: 12px; line-height: 1.2; }
+  .ayuda-pasos details { padding: 14px 16px; border-radius: 16px; background: var(--sup-fuerte); border: 1px solid var(--linea); margin-bottom: 10px; }
+  .ayuda-pasos summary { font-weight: 800; cursor: pointer; display: flex; gap: 10px; align-items: center; }
+  .ayuda-pasos ol { margin: 10px 0 0; padding-left: 22px; } .ayuda-pasos li { margin: 4px 0; }
 </style>
 </head>
 <body>
@@ -198,9 +214,9 @@
       S.panel = p; S.yo = p.yo;
       $('yoNombre').textContent = p.yo.nombre; $('yoRol').textContent = p.yo.rol === 'ADMIN' ? 'Coordinación' : 'Docente';
       $('yoIni').textContent = p.yo.nombre.split(' ').map(function (x) { return x[0]; }).slice(0, 2).join('');
-      var items = [['inicio', 'inicio', 'Inicio'], ['examenes', 'examen', 'Exámenes'], ['estudiantes', 'usuarios', 'Estudiantes']];
+      var items = [['inicio', 'inicio', 'Inicio'], ['examenes', 'examen', 'Exámenes'], ['banco', 'banco', 'Banco'], ['reportes', 'grafica', 'Reportes'], ['estudiantes', 'usuarios', 'Estudiantes']];
       if (p.yo.rol === 'ADMIN') items.push(['docentes', 'docentes', 'Docentes']);
-      items.push(['cuenta', 'cuenta', 'Mi cuenta']);
+      items.push(['ayuda', 'ayuda', 'Ayuda'], ['cuenta', 'cuenta', 'Mi cuenta']);
       $('menu').innerHTML = items.map(function (x) { return '<button class="nav" data-ir="' + x[0] + '">' + ICO(x[1]) + '<span>' + x[2] + '</span></button>'; }).join('');
       ir(S.vista === 'editor' || S.vista === 'resultados' ? 'inicio' : S.vista);
     }).catch(function (e) { if (e.sesion !== 'fin') $('pagina').innerHTML = '<div class="tarjeta"><b>No se pudo abrir el panel.</b><p class="suave">' + esc(e.message) + '</p></div>'; });
@@ -209,7 +225,65 @@
   function ir(v, arg) {
     parar(); S.vista = v; window.scrollTo(0, 0); $('pagina').onclick = null;
     document.querySelectorAll('.nav').forEach(function (n) { n.classList.toggle('on', n.dataset.ir === v || (v === 'editor' || v === 'resultados') && n.dataset.ir === 'examenes'); });
-    ({ inicio: inicio, examenes: examenes, estudiantes: estudiantes, docentes: docentes, cuenta: cuenta, editor: editor, resultados: resultados })[v](arg);
+    ({ inicio: inicio, examenes: examenes, banco: banco, reportes: reportes, estudiantes: estudiantes, docentes: docentes, ayuda: ayuda, cuenta: cuenta, editor: editor, resultados: resultados })[v](arg);
+  }
+
+  /* ---------- Excel y PDF (librerías bajo demanda) ---------- */
+  function cargarJs(u) { return new Promise(function (ok, mal) { var s = document.createElement('script'); s.src = u; s.onload = ok; s.onerror = function () { mal(new Error('No se pudo cargar la herramienta de descarga. Revisa el internet.')); }; document.head.appendChild(s); }); }
+  function libs() {
+    var cdn = 'https://cdnjs.cloudflare.com/ajax/libs/';
+    if (!S.libs) S.libs = Promise.all([cargarJs(cdn + 'xlsx/0.18.5/xlsx.full.min.js'), cargarJs(cdn + 'jspdf/2.5.1/jspdf.umd.min.js')])
+      .then(function () { return cargarJs(cdn + 'jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'); }).catch(function (e) { S.libs = null; throw e; });
+    return S.libs;
+  }
+  function archivo(t) { return String(t).replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').trim().slice(0, 90); }
+  /** hojas = [{ nombre, filas: [[encabezados], [...], ...] }] */
+  function bajarExcel(nombre, hojas) {
+    return libs().then(function () {
+      var wb = XLSX.utils.book_new();
+      hojas.forEach(function (h) {
+        var ws = XLSX.utils.aoa_to_sheet(h.filas);
+        ws['!cols'] = h.filas[0].map(function (_, j) { return { wch: Math.min(50, Math.max.apply(null, h.filas.map(function (f) { return String(f[j] == null ? '' : f[j]).length; })) + 2) }; });
+        XLSX.utils.book_append_sheet(wb, ws, h.nombre.slice(0, 31));
+      });
+      XLSX.writeFile(wb, archivo(nombre) + '.xlsx');
+    }).catch(function (e) { AVISO(e.message, 'error'); });
+  }
+  /** Tabla en PDF carta; minimo marca en rojo las notas bajas de las columnas desdeCol en adelante. */
+  function bajarPdf(nombre, titulo, sub, cab, filas, opc) {
+    opc = opc || {};
+    return libs().then(function () {
+      var doc = new jspdf.jsPDF({ orientation: opc.horizontal ? 'landscape' : 'portrait', unit: 'pt', format: 'letter' }), H = doc.internal.pageSize.getHeight();
+      doc.setFillColor(79, 70, 229); doc.rect(0, 0, doc.internal.pageSize.getWidth(), 6, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(20); doc.text(titulo, 40, 40);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(90); doc.text(doc.splitTextToSize(sub, doc.internal.pageSize.getWidth() - 80), 40, 56);
+      doc.autoTable({ head: [cab], body: filas, startY: 76, styles: { fontSize: opc.chica ? 7.5 : 8.8, cellPadding: 4, overflow: 'linebreak' }, headStyles: { fillColor: [79, 70, 229], halign: 'center' },
+        alternateRowStyles: { fillColor: [246, 247, 251] }, columnStyles: opc.columnas || {},
+        didParseCell: function (d) { if (d.section === 'body' && opc.minimo && d.column.index >= (opc.desdeCol || 0)) { var v = parseFloat(String(d.cell.raw).replace(',', '.')); if (!isNaN(v)) { d.cell.styles.halign = 'center'; if (v < opc.minimo) d.cell.styles.textColor = [200, 30, 40]; } } },
+        didDrawPage: function () { doc.setFontSize(8); doc.setTextColor(150); doc.text('Examen Seguro · Politécnico Cristiano James Davis · ' + new Date().toLocaleString('es-DO'), 40, H - 18); } });
+      doc.save(archivo(nombre) + '.pdf');
+    }).catch(function (e) { AVISO(e.message, 'error'); });
+  }
+  /** Versión en papel del examen con hoja de clave al final. */
+  function bajarPapel(x, preguntas) {
+    return libs().then(function () {
+      var doc = new jspdf.jsPDF({ unit: 'pt', format: 'letter' }), W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), m = 50, y = 50;
+      function linea(t, tam, negrita, gris) {
+        doc.setFont('helvetica', negrita ? 'bold' : 'normal'); doc.setFontSize(tam); doc.setTextColor(gris || 20);
+        doc.splitTextToSize(String(t), W - 2 * m).forEach(function (l) { if (y > H - 50) { doc.addPage(); y = 50; } doc.text(l, m, y); y += tam * 1.4; });
+      }
+      var cab = function () { linea('Politécnico Cristiano James Davis', 9.5, false, 110); linea(x.titulo, 15, true); linea([x.curso, x.materia].filter(Boolean).join(' · ') + (x.minutos ? ' · ' + x.minutos + ' minutos' : ''), 10, false, 90); };
+      cab(); y += 4; linea('Nombre: _____________________________________   Fecha: ___________   Nota: ______', 10.5); y += 6;
+      if (x.instrucciones) linea(x.instrucciones, 10, false, 70);
+      preguntas.forEach(function (q, i) {
+        y += 8; linea((i + 1) + '. ' + q.enunciado + '   (' + (q.puntos || 1) + ' pt)', 11, true);
+        if (q.tipo === 'CORTA') for (var k = 0; k < 3; k++) linea('_____________________________________________________________________________', 10, false, 160);
+        else q.opciones.forEach(function (o, j) { linea('      ' + String.fromCharCode(97 + j) + ')  ' + o, 10.5); });
+      });
+      doc.addPage(); y = 50; cab(); y += 6; linea('CLAVE DE RESPUESTAS (solo para el docente)', 12, true);
+      preguntas.forEach(function (q, i) { var j = q.opciones.indexOf(q.correcta); linea((i + 1) + '.  ' + (q.tipo !== 'CORTA' && j >= 0 ? String.fromCharCode(97 + j) + ')  ' : '') + String(q.correcta).split('|').join(' / '), 10.5); });
+      doc.save(archivo('Examen en papel ' + x.titulo) + '.pdf');
+    }).catch(function (e) { AVISO(e.message, 'error'); });
   }
   function refrescarPanel() { return A({ action: 'panel' }).then(function (p) { S.panel = p; }); }
 
@@ -252,7 +326,8 @@
   function tarjetaExamen(e) {
     var prac = e.modo === 'PRACTICA';
     return '<article class="tarjeta examen-t' + (prac ? ' practica' : '') + '"><div class="franja"></div><div class="cuerpo">' +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap">' + estadoExamen(e) + '<span class="pildora">' + (prac ? ICO('libro') + ' Práctica' : ICO('candado') + ' Examen') + '</span><span class="pildora">' + esc(e.codigo) + '</span></div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap">' + estadoExamen(e) + '<span class="pildora">' + (prac ? ICO('libro') + ' Práctica' : ICO('candado') + ' Examen') + '</span><span class="pildora">' + esc(e.codigo) + '</span>' +
+      (e.porCorregir ? '<span class="pildora amarillo">' + ICO('corregir') + ' ' + e.porCorregir + ' por corregir</span>' : '') + (e.compartido ? '<span class="pildora azul">' + ICO('banco') + ' En el banco</span>' : '') + '</div>' +
       '<h3>' + esc(e.titulo) + '</h3><div class="suave pequeno">' + esc([e.curso, e.materia].filter(Boolean).join(' · ')) + (S.yo.rol === 'ADMIN' && e.docente ? ' · ' + esc(e.docente) : '') + '</div>' +
       '<div class="metricas"><div><b>' + e.nPreguntas + '</b><span>preguntas</span></div><div><b>' + e.entregados + (e.estudiantes ? '/' + e.estudiantes : '') + '</b><span>entregas</span></div><div><b>' + (e.promedio === null ? '—' : e.promedio) + '</b><span>promedio</span></div></div></div>' +
       '<div class="acciones"><button class="btn fantasma mini" data-res="' + e.id + '">' + ICO('grafica') + ' Resultados</button><button class="btn fantasma mini" data-ed="' + e.id + '">' + ICO('editar') + ' Editar</button>' +
@@ -315,7 +390,8 @@
       var x = r.examen;
       E = { paso: paso, ex: { id: x.id, titulo: x.titulo, materia: x.materia || '', curso: x.curso, modo: x.modo === 'PRACTICA' ? 'PRACTICA' : 'EXAMEN', minutos: Number(x.minutos) || 0, preguntas: Number(x.preguntas) || 0,
         notaMinima: Number(x.notaMinima) || 70, inicio: (x.inicio || '').replace(' ', 'T').slice(0, 16), fin: (x.fin || '').replace(' ', 'T').slice(0, 16), instrucciones: x.instrucciones || '',
-        activo: !/^no$/i.test(String(x.activo)), codigo: x.codigo, reglas: x.reglas, compartido: String(x.banco || '').indexOf(',') >= 0 }, preguntas: r.preguntas };
+        activo: !/^no$/i.test(String(x.activo)), codigo: x.codigo, reglas: x.reglas, multiBanco: String(x.banco || '').indexOf(',') >= 0, compartido: !!x.compartido }, preguntas: r.preguntas };
+      if (x.soloVer) { AVISO('Ese examen es de otro docente. Úsalo desde el Banco.', 'error'); ir('banco'); return; }
       pintarEditor();
     }).catch(function (e) { AVISO(e.message, 'error'); ir('examenes'); });
   }
@@ -354,11 +430,13 @@
       '<div class="fila"><label class="campo"><span>Abre (opcional)</span><input class="entrada" type="datetime-local" id="ed_inicio" value="' + esc(x.inicio) + '"></label>' +
       '<label class="campo"><span>Cierra (opcional)</span><input class="entrada" type="datetime-local" id="ed_fin" value="' + esc(x.fin) + '"></label></div>' +
       '<label class="campo"><span>Indicaciones para el estudiante</span><textarea class="entrada" id="ed_instrucciones" maxlength="600" placeholder="Ej.: Lee con calma. Una sola respuesta correcta en cada pregunta.">' + esc(x.instrucciones) + '</textarea></label>' +
-      '<div class="regla-ed"><span class="chip-ico verde">' + ICO('check') + '</span><div class="txt"><b>Examen activo</b><span class="d">Si lo apagas, el código deja de funcionar.</span></div><label class="interruptor"><input type="checkbox" id="ed_activo"' + (x.activo ? ' checked' : '') + '><i></i></label></div></div>';
+      '<div class="regla-ed"><span class="chip-ico verde">' + ICO('check') + '</span><div class="txt"><b>Examen activo</b><span class="d">Si lo apagas, el código deja de funcionar.</span></div><label class="interruptor"><input type="checkbox" id="ed_activo"' + (x.activo ? ' checked' : '') + '><i></i></label></div>' +
+      '<div class="regla-ed"><span class="chip-ico azul">' + ICO('banco') + '</span><div class="txt"><b>Compartir en el banco de exámenes</b><span class="d">Tus colegas lo verán como examen de referencia y podrán copiarlo a sus cursos (no ven las notas de tus estudiantes).</span></div><label class="interruptor"><input type="checkbox" id="ed_compartido"' + (x.compartido ? ' checked' : '') + '><i></i></label></div></div>';
     $('ed_curso').onchange = function () { leerPaso(); E.ex.curso = this.value; E.ex.materia = ''; pasoDatos(); };
     $('ed_materia').onchange = function () { $('ed_materiaOtra').classList.toggle('oculto', this.value !== '__otra'); };
     if (!matOpts.length) { $('ed_materia').value = '__otra'; $('ed_materiaOtra').classList.remove('oculto'); }
     $('ed_activo').onchange = function () { E.ex.activo = this.checked; };
+    $('ed_compartido').onchange = function () { E.ex.compartido = this.checked; };
     $('ed_modo').onclick = function (e) {
       var b = e.target.closest('[data-m]'); if (!b || b.dataset.m === E.ex.modo) return; leerPaso();
       E.ex.modo = b.dataset.m; E.ex.reglas = JSON.parse(JSON.stringify(PRESETS[b.dataset.m === 'PRACTICA' ? 'practica' : 'estricto'].r));
@@ -369,7 +447,7 @@
   /* Preguntas */
   function pasoPreguntas() {
     var q = E.preguntas;
-    $('edCuerpo').innerHTML = (E.ex.compartido ? '<div class="tarjeta" style="margin-bottom:12px"><b>' + ICO('alerta') + ' Este examen usa preguntas de varios bancos.</b><p class="suave" style="margin:4px 0 0">Si guardas aquí, las preguntas se copian a este examen.</p></div>' : '') +
+    $('edCuerpo').innerHTML = (E.ex.multiBanco ? '<div class="tarjeta" style="margin-bottom:12px"><b>' + ICO('alerta') + ' Este examen usa preguntas de varios bancos.</b><p class="suave" style="margin:4px 0 0">Si guardas aquí, las preguntas se copian a este examen.</p></div>' : '') +
       '<div class="filtros"><button class="btn claro" data-add="MC">' + ICO('mas') + ' Selección múltiple</button><button class="btn claro" data-add="VF">' + ICO('mas') + ' Verdadero o falso</button>' +
       '<button class="btn claro" data-add="CORTA">' + ICO('mas') + ' Respuesta corta</button><button class="btn primario" id="btnImportar">' + ICO('importar') + ' Pegar preguntas</button>' +
       '<span class="suave pequeno" style="margin-left:auto">' + q.length + ' preguntas · ' + q.reduce(function (a, x) { return a + (Number(x.puntos) || 1); }, 0) + ' puntos</span></div>' +
@@ -483,13 +561,14 @@
     $('edCuerpo').innerHTML = '<div class="dos"><div class="tarjeta"><h3>' + ICO('llave') + ' Código</h3><div class="compartir-codigo">' + esc(x.codigo) + '</div>' +
       '<div class="filtros" style="margin-top:12px"><button class="btn claro" data-cp="' + esc(x.codigo) + '">' + ICO('copiar') + ' Copiar código</button><button class="btn claro" id="btnNuevoCod">' + ICO('recargar') + ' Cambiar código</button></div>' +
       '<h3 style="margin-top:14px">' + ICO('enlace') + ' Enlace directo</h3><input class="entrada" readonly value="' + esc(url) + '"><div class="filtros" style="margin-top:10px"><button class="btn claro" data-cp="' + esc(url) + '">' + ICO('copiar') + ' Copiar enlace</button>' +
-      '<button class="btn claro" id="btnTextoCl">' + ICO('copiar') + ' Copiar texto para Classroom</button></div>' +
+      '<button class="btn claro" id="btnTextoCl">' + ICO('copiar') + ' Copiar texto para Classroom</button><button class="btn claro" id="btnPapel">' + ICO('imprimir') + ' Versión en papel (PDF)</button></div>' +
       '<p class="suave pequeno">' + (x.modo === 'EXAMEN' ? 'Consejo: en un examen, da el código en el aula y publica el enlace sin el código.' : 'En una práctica puedes publicar el enlace completo en Classroom.') + '</p></div>' +
       '<div class="tarjeta" style="text-align:center"><h3 style="justify-content:center">' + ICO('qr') + ' Código QR</h3><div id="qr"></div><p class="suave pequeno">Proyéctalo en el aula: lo escanean con la cámara.</p><button class="btn claro" id="btnQrGrande">' + ICO('pantalla') + ' Mostrar en grande</button></div></div>';
     try { new QRCode($('qr'), { text: url, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M }); } catch (e) { $('qr').textContent = 'QR no disponible'; }
     $('edCuerpo').onclick = function (e) { var b = e.target.closest('[data-cp]'); if (b) copiar(b.dataset.cp); };
     $('btnNuevoCod').onclick = function () { confirmar('¿Cambiar el código?', 'El código anterior dejará de funcionar.', 'Cambiar', function () { A({ action: 'nuevoCodigo', id: x.id }).then(function (r) { x.codigo = r.codigo; AVISO('Código nuevo: ' + r.codigo); pasoCompartir(); refrescarPanel(); }).catch(function (er) { AVISO(er.message, 'error'); }); }); };
     $('btnTextoCl').onclick = function () { copiar('📝 ' + x.titulo + '\n\n1️⃣ Abre: ' + (x.modo === 'EXAMEN' ? WEB : url) + '\n2️⃣ ' + (x.modo === 'EXAMEN' ? 'Escribe el código que te daré en clase.' : 'El código ya viene en el enlace: ' + x.codigo) + '\n3️⃣ Elige tu nombre y responde.\n\n' + (x.minutos ? '⏱️ Tienes ' + x.minutos + ' minutos. ' : '') + (E.ex.reglas.pantallaCompleta ? 'Se abre en pantalla completa; si sales de la ventana se entrega solo.' : '')); };
+    $('btnPapel').onclick = function () { AVISO('Preparando el PDF…'); bajarPapel(x, E.preguntas); };
     $('btnQrGrande').onclick = function () { modal('<div style="text-align:center"><h1>' + esc(x.codigo) + '</h1><div id="qrG" style="display:grid;place-items:center;background:#fff;padding:18px;border-radius:18px;width:max-content;margin:12px auto"></div><p class="suave">' + esc(WEB) + '</p><button class="btn claro" data-cerrar>Cerrar</button></div>', true);
       try { new QRCode($('qrG'), { text: url, width: 360, height: 360 }); } catch (e) {} };
   }
@@ -502,10 +581,10 @@
     if (malas.length) { E.paso = 'preguntas'; pintarEditor(); AVISO('Revisa la pregunta ' + malas[0], 'error'); return; }
     $('edGuardar').disabled = true; $('edEstado').textContent = 'Guardando…';
     var datos = { action: 'guardarExamen', examen: { id: x.id, titulo: x.titulo, materia: x.materia, curso: x.curso, modo: x.modo, minutos: x.minutos, preguntas: x.preguntas, notaMinima: x.notaMinima,
-      inicio: x.inicio, fin: x.fin, instrucciones: x.instrucciones, activo: x.activo, reglas: x.reglas },
+      inicio: x.inicio, fin: x.fin, instrucciones: x.instrucciones, activo: x.activo, reglas: x.reglas, compartido: !!x.compartido },
       preguntas: E.preguntas.map(function (q) { return { tipo: q.tipo, enunciado: q.enunciado, opciones: q.tipo === 'CORTA' ? [] : q.opciones.filter(function (o) { return o.trim(); }), correcta: q.correcta, puntos: q.puntos, explicacion: q.explicacion, tema: q.tema }; }) };
     A(datos).then(function (r) {
-      var nuevo = !x.id; x.id = r.id; x.codigo = r.codigo; x.compartido = false;
+      var nuevo = !x.id; x.id = r.id; x.codigo = r.codigo; x.multiBanco = false;
       AVISO(nuevo ? 'Examen creado · código ' + r.codigo : 'Cambios guardados');
       refrescarPanel(); if (nuevo) { E.paso = 'compartir'; pintarEditor(); } else { $('edEstado').textContent = 'Guardado ✓'; }
     }).catch(function (e) { AVISO(e.message, 'error'); $('edEstado').textContent = ''; }).then(function () { if ($('edGuardar')) $('edGuardar').disabled = false; });
@@ -514,7 +593,7 @@
   /* ---------- Resultados ---------- */
   var R = null;
   function resultados(id) {
-    cargando('Calculando resultados…');
+    cargando('Calculando resultados…'); S.resTab = 'est';
     var cargar = function (silencioso) {
       return A({ action: 'resultados', id: id }).then(function (r) { R = r; pintarResultados(id); }).catch(function (e) { if (!silencioso) { AVISO(e.message, 'error'); ir('examenes'); } });
     };
@@ -524,10 +603,10 @@
   function pintarResultados(id) {
     var r = R, s = r.stats, x = r.examen, vivo = !!S.vivo;
     var aprob = s.entregados ? Math.round(s.aprobados / s.entregados * 100) : 0;
-    var hmax = Math.max.apply(null, s.histograma.concat([1]));
+    var hmax = Math.max.apply(null, s.histograma.concat([1])), pend = r.intentos.reduce(function (a, i) { return a + (i.pendientes || 0); }, 0);
     $('pagina').innerHTML = cabeza(esc(x.titulo), esc([x.curso, x.materia].filter(Boolean).join(' · ')) + ' · <span class="pildora">' + esc(x.codigo) + '</span>',
       '<button class="btn claro" data-volver>' + ICO('atras') + '</button><button class="btn ' + (vivo ? 'ok' : 'claro') + '" id="btnVivo">' + ICO('vivo') + (vivo ? ' En vivo' : ' Ver en vivo') + '</button>' +
-      '<button class="btn claro" id="btnRecargar">' + ICO('recargar') + '</button><button class="btn claro" id="btnCsv">' + ICO('descargar') + ' Excel</button><button class="btn claro no-imprimir" onclick="print()">' + ICO('imprimir') + '</button>' +
+      '<button class="btn claro" id="btnRecargar">' + ICO('recargar') + '</button><button class="btn claro" id="btnXls">' + ICO('descargar') + ' Excel</button><button class="btn claro" id="btnPdf">' + ICO('descargar') + ' PDF</button><button class="btn claro no-imprimir" onclick="print()">' + ICO('imprimir') + '</button>' +
       '<button class="btn primario" data-ed="' + id + '">' + ICO('editar') + ' Editar</button>') +
       '<div class="kpis">' + kpi('check', 'azul', s.entregados + (s.estudiantes ? ' / ' + s.estudiantes : ''), 'Entregaron') + kpi('vivo', 'verde', s.enCurso, 'En curso ahora') +
       kpi('premio', 'amarillo', s.promedio === null ? '—' : s.promedio, 'Promedio · mediana ' + (s.mediana === null ? '—' : s.mediana)) + kpi('estrella', 'verde', aprob + '%', 'Aprobados (≥ ' + x.notaMinima + ')') +
@@ -536,17 +615,21 @@
         return '<div><em>' + (n || '') + '</em><i class="' + (i < 5 ? 'bajo' : i < 7 ? 'medio' : '') + '" style="height:' + (n / hmax * 100) + '%"></i><small>' + (i * 10) + (i === 9 ? '+' : '') + '</small></div>'; }).join('') + '</div>' +
       '<p class="suave pequeno" style="margin:10px 0 0">Máxima ' + (s.maxima === null ? '—' : s.maxima) + ' · mínima ' + (s.minima === null ? '—' : s.minima) + '</p></div>' +
       '<div class="tarjeta"><h3>' + ICO('usuarios') + ' Sin presentar (' + s.sinIntento.length + ')</h3>' + (s.sinIntento.length ? '<div class="chips-n">' + s.sinIntento.map(function (n) { return '<span class="pildora">' + esc(n) + '</span>'; }).join('') + '</div>' : '<p class="suave">¡Todos lo hicieron! 🎉</p>') + '</div></div>' +
-      '<div class="segmento" id="resTab" style="margin-bottom:12px"><button class="on" data-t="est">' + ICO('usuarios') + ' Estudiantes</button><button data-t="preg">' + ICO('lista') + ' Preguntas</button></div><div id="resCuerpo"></div>';
-    var tab = 'est';
+      '<div class="segmento" id="resTab" style="margin-bottom:12px"><button class="on" data-t="est">' + ICO('usuarios') + ' Estudiantes</button><button data-t="preg">' + ICO('lista') + ' Preguntas</button>' +
+      '<button data-t="corr">' + ICO('corregir') + ' Por corregir' + (pend ? ' <span class="pildora amarillo">' + pend + '</span>' : '') + '</button></div><div id="resCuerpo"></div>';
+    var tab = S.resTab || 'est';
+    $('resTab').querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.dataset.t === tab); });
     function cuerpo() {
       if (tab === 'est') $('resCuerpo').innerHTML = r.intentos.length ? '<div class="tarjeta desliza"><table class="tabla"><thead><tr><th>Estudiante</th><th>Estado</th><th>Nota</th><th>Correctas</th><th>Tiempo</th><th>Salidas</th><th>Cómo terminó</th><th></th></tr></thead><tbody>' + r.intentos.map(function (i) {
         var cur = i.estado === 'EN_CURSO';
         return '<tr><td><b>' + esc(i.nombre) + '</b><div class="tenue pequeno">' + FECHA(i.inicio) + '</div></td><td>' + (cur ? '<span class="pildora verde"><span class="punto vivo"></span>En curso · ' + i.respondidas + '/' + i.total + '</span>' : '<span class="pildora azul">Entregado</span>') + '</td>' +
-          '<td>' + (i.nota === null ? '—' : '<div style="display:flex;gap:8px;align-items:center"><b style="min-width:42px">' + i.nota + '</b><div class="barra-nota"><i class="' + claseNota(i.nota) + '" style="width:' + i.nota + '%"></i></div></div>') + '</td>' +
+          '<td>' + (i.nota === null ? '—' : '<div style="display:flex;gap:8px;align-items:center"><b style="min-width:42px">' + i.nota + '</b><div class="barra-nota"><i class="' + claseNota(i.nota) + '" style="width:' + i.nota + '%"></i></div></div>') +
+            (i.pendientes ? '<span class="pildora amarillo pequeno" title="Respuestas cortas sin corregir">' + ICO('corregir') + ' ' + i.pendientes + ' por corregir</span>' : '') + '</td>' +
           '<td>' + (cur ? '—' : i.correctas + ' / ' + i.total) + '</td><td>' + DURACION(i.duracion) + '</td><td>' + (i.salidas ? '<span class="pildora rojo">' + i.salidas + '</span>' : '<span class="tenue">0</span>') + '</td>' +
           '<td class="pequeno suave" style="max-width:220px">' + esc(i.motivo) + '</td><td style="white-space:nowrap"><button class="btn fantasma icono" data-ver="' + i.id + '" title="Ver respuestas">' + ICO('ver') + '</button>' +
-          (cur ? '<button class="btn fantasma icono" data-cerrar-int="' + i.id + '" title="Entregar ya">' + ICO('check') + '</button>' : '') + '<button class="btn fantasma icono" data-anular="' + i.id + '" title="Anular (puede repetir)" style="color:var(--rojo)">' + ICO('intentos') + '</button></td></tr>';
+          (cur ? (i.limite ? '<button class="btn fantasma icono" data-mas="' + i.id + '" title="Darle más tiempo">' + ICO('reloj') + '</button>' : '') + '<button class="btn fantasma icono" data-cerrar-int="' + i.id + '" title="Entregar ya">' + ICO('check') + '</button>' : '') + '<button class="btn fantasma icono" data-anular="' + i.id + '" title="Anular (puede repetir)" style="color:var(--rojo)">' + ICO('intentos') + '</button></td></tr>';
       }).join('') + '</tbody></table></div>' : '<div class="tarjeta vacio"><div class="chip-ico">' + ICO('usuarios') + '</div><p>Nadie ha empezado todavía. Comparte el código <b>' + esc(x.codigo) + '</b>.</p></div>';
+      else if (tab === 'corr') pintarCorregir();
       else $('resCuerpo').innerHTML = r.preguntas.length ? '<p class="suave pequeno">Ordenadas de la más difícil a la más fácil: las primeras son las que debes repasar en clase.</p>' + r.preguntas.map(function (q) {
         var tot = Object.keys(q.elegidas).reduce(function (a, k) { return a + q.elegidas[k]; }, 0) || 1;
         return '<div class="pq"><b style="white-space:pre-line">' + esc(q.enunciado) + '</b>' + (q.tema ? ' <span class="pildora">' + esc(q.tema) + '</span>' : '') +
@@ -558,29 +641,211 @@
       }).join('') : '<div class="tarjeta vacio"><p>Cuando haya entregas verás aquí qué preguntas costaron más.</p></div>';
     }
     cuerpo();
-    $('resTab').onclick = function (e) { var b = e.target.closest('[data-t]'); if (!b) return; tab = b.dataset.t; this.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); }); cuerpo(); };
+    $('resTab').onclick = function (e) { var b = e.target.closest('[data-t]'); if (!b) return; tab = S.resTab = b.dataset.t; this.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); }); cuerpo(); };
     $('pagina').querySelector('[data-volver]').onclick = function () { refrescarPanel().then(function () { ir('examenes'); }); };
     $('btnRecargar').onclick = function () { S.recargar(); };
     $('btnVivo').onclick = function () { if (S.vivo) { parar(); } else { S.vivo = setInterval(function () { S.recargar(true); }, 15000); AVISO('Se actualiza cada 15 segundos'); } pintarResultados(id); };
-    $('btnCsv').onclick = function () {
-      var filas = [['Estudiante', 'Estado', 'Nota', 'Correctas', 'Total', 'Tiempo (min)', 'Salidas', 'Cómo terminó', 'Inicio', 'Fin']].concat(r.intentos.map(function (i) {
-        return [i.nombre, i.estado, i.nota === null ? '' : String(i.nota).replace('.', ','), i.correctas, i.total, i.duracion ? (i.duracion / 60).toFixed(1).replace('.', ',') : '', i.salidas, i.motivo, i.inicio, i.fin]; }));
-      var csv = '﻿' + filas.map(function (f) { return f.map(function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(';'); }).join('\r\n');
-      var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = 'Resultados ' + x.titulo.replace(/[^\w\sáéíóúñ-]/gi, '') + '.csv'; a.click();
+    var ordenados = function () { return r.intentos.slice().sort(function (a, b) { return a.nombre.localeCompare(b.nombre, 'es'); }); };
+    var subTit = [x.curso, x.materia, 'Código ' + x.codigo].filter(Boolean).join(' · ') + ' · Promedio ' + (s.promedio === null ? '—' : s.promedio) + ' · Aprobados ' + s.aprobados + ' de ' + s.entregados + ' (nota mínima ' + x.notaMinima + ')';
+    $('btnXls').onclick = function () {
+      AVISO('Preparando el Excel…');
+      bajarExcel('Resultados ' + x.titulo + ' ' + x.curso, [
+        { nombre: 'Resultados', filas: [['Estudiante', 'Estado', 'Nota', 'Correctas', 'Total', 'Por corregir', 'Tiempo (min)', 'Salidas', 'Cómo terminó', 'Inicio', 'Fin']].concat(ordenados().map(function (i) {
+          return [i.nombre, i.estado === 'EN_CURSO' ? 'En curso' : 'Entregado', i.nota, i.correctas, i.total, i.pendientes || 0, i.duracion ? Math.round(i.duracion / 6) / 10 : '', i.salidas, i.motivo, FECHA(i.inicio), FECHA(i.fin)]; }))
+          .concat([[], ['Sin presentar'].concat(s.sinIntento)]) },
+        { nombre: 'Preguntas', filas: [['Pregunta', 'Tema', '% acierto', 'Vistas', 'En blanco', 'Respuesta correcta']].concat(r.preguntas.map(function (q) { return [q.enunciado, q.tema, q.acierto, q.vistas, q.blanco, q.correcta]; })) }
+      ]);
+    };
+    $('btnPdf').onclick = function () {
+      AVISO('Preparando el PDF…');
+      var filas = ordenados().map(function (i, k) { return [k + 1, i.nombre, i.nota === null ? '—' : i.nota, i.correctas + ' / ' + i.total + (i.pendientes ? ' *' : ''), DURACION(i.duracion), i.salidas, i.motivo]; });
+      s.sinIntento.forEach(function (n) { filas.push(['', n, '—', 'No presentó', '', '', '']); });
+      bajarPdf('Resultados ' + x.titulo + ' ' + x.curso, x.titulo, subTit + (pend ? ' · * tiene respuestas cortas sin corregir' : ''), ['#', 'Estudiante', 'Nota', 'Correctas', 'Tiempo', 'Salidas', 'Cómo terminó'], filas,
+        { minimo: x.notaMinima, desdeCol: 2, columnas: { 0: { cellWidth: 22, halign: 'center' }, 6: { cellWidth: 150 } } });
     };
     $('resCuerpo').onclick = function (e) {
-      var b = e.target.closest('[data-ver],[data-anular],[data-cerrar-int]'); if (!b) return;
+      var b = e.target.closest('[data-ver],[data-anular],[data-cerrar-int],[data-mas]'); if (!b) return;
+      if (b.dataset.mas) { modal('<h2>' + ICO('reloj') + ' Darle más tiempo</h2><p class="suave">Sirve si se le fue el internet o empezó tarde. Se suma a su reloj sin reiniciar el examen.</p><div class="filtros">' +
+        [5, 10, 15].map(function (m) { return '<button class="btn claro" data-min="' + m + '">+' + m + ' min</button>'; }).join('') + '</div><div style="text-align:right"><button class="btn claro" data-cerrar>Cancelar</button></div>');
+        $('modalCaja').onclick = function (ev) { var m = ev.target.closest('[data-min]'); if (!m) return; cerrarModal(); $('modalCaja').onclick = null;
+          A({ action: 'extenderTiempo', id: b.dataset.mas, minutos: Number(m.dataset.min) }).then(function () { AVISO('Listo: +' + m.dataset.min + ' minutos'); S.recargar(); }).catch(function (er) { AVISO(er.message, 'error'); }); };
+        return; }
       if (b.dataset.ver) A({ action: 'detalleIntento', id: b.dataset.ver }).then(function (d) {
         var it = d.intento;
         modal('<h2>' + ICO('ver') + ' ' + esc(it.nombre) + '</h2><p class="suave">Nota <b>' + (it.nota === '' ? '—' : it.nota) + '</b> · ' + DURACION(it.duracion) + ' · ' + esc(it.motivo || 'En curso') + '</p>' +
           (it.eventos && it.eventos.length ? '<div class="pq"><b>' + ICO('alerta') + ' Salidas registradas</b>' + it.eventos.map(function (v) { return '<div class="pequeno suave">' + FECHA(v.t) + ' · ' + esc(v.e) + '</div>'; }).join('') + '</div>' : '') +
-          d.revision.map(function (q) { return '<div class="pq" style="border-left:5px solid ' + (q.bien ? 'var(--verde)' : 'var(--rojo)') + '"><b style="white-space:pre-line">' + q.n + '. ' + esc(q.enunciado) + '</b><div class="pequeno" style="margin-top:6px">' +
-            (q.bien ? '✔ ' + esc(q.tu) : '✘ ' + esc(q.tu || '(sin responder)') + ' · <span style="color:var(--verde)">Correcta: ' + esc(q.correcta) + '</span>') + '</div></div>'; }).join('') +
+          d.revision.map(function (q) { return '<div class="pq" style="border-left:5px solid ' + (q.pendiente ? 'var(--amarillo)' : q.bien ? 'var(--verde)' : q.obtenidos ? 'var(--amarillo)' : 'var(--rojo)') + '"><b style="white-space:pre-line">' + q.n + '. ' + esc(q.enunciado) + '</b>' +
+            ' <span class="pildora">' + q.obtenidos + ' / ' + q.puntos + ' pt</span>' + (q.pendiente ? ' <span class="pildora amarillo">Por corregir</span>' : '') + '<div class="pequeno" style="margin-top:6px">' +
+            (q.bien ? '✔ ' + esc(q.tu) : (q.pendiente ? '✎ ' : '✘ ') + esc(q.tu || '(sin responder)') + ' · <span style="color:var(--verde)">' + (q.tipo === 'CORTA' ? 'Modelo: ' : 'Correcta: ') + esc(q.correcta) + '</span>') + '</div></div>'; }).join('') +
           '<div style="text-align:right;margin-top:10px"><button class="btn claro" data-cerrar>Cerrar</button></div>', true);
       }).catch(function (er) { AVISO(er.message, 'error'); });
       if (b.dataset.anular) confirmar('¿Anular este intento?', 'Se borra de las estadísticas y el estudiante podrá hacer el examen otra vez.', 'Anular', function () { A({ action: 'anularIntento', id: b.dataset.anular }).then(function () { AVISO('Intento anulado'); S.recargar(); }).catch(function (er) { AVISO(er.message, 'error'); }); }, true);
       if (b.dataset.cerrarInt) confirmar('¿Entregar ahora?', 'Se califica con lo que lleva respondido.', 'Entregar', function () { A({ action: 'cerrarIntento', id: b.dataset.cerrarInt }).then(function () { AVISO('Entregado'); S.recargar(); }).catch(function (er) { AVISO(er.message, 'error'); }); });
     };
+  }
+
+  /* Corrección manual de respuestas cortas: pregunta por pregunta, todo el curso */
+  function pintarCorregir() {
+    $('resCuerpo').innerHTML = '<div id="corrCaja"><div class="girar" style="margin:30px auto"></div></div>'; var c0 = $('corrCaja');
+    A({ action: 'porCorregir', id: R.examen.id }).then(function (c) {
+      if (!c.preguntas.length) { c0.innerHTML = '<div class="tarjeta vacio"><div class="chip-ico verde">' + ICO('check') + '</div><h3 style="justify-content:center">Nada que corregir</h3><p>Este examen no tiene respuestas cortas entregadas.</p></div>'; return; }
+      var cambios = {};
+      var fmt = function (p) { return String(Math.round(p * 100) / 100).replace('.', ','); };
+      c0.innerHTML = '<p class="suave pequeno">Corrige una pregunta a la vez para todo el curso. La respuesta modelo es solo una guía: tú decides los puntos (0, la mitad, todo o el número que quieras). Las amarillas aún no las has corregido.</p>' +
+        c.preguntas.map(function (g) {
+          return '<div class="tarjeta" style="margin-bottom:14px"><b style="white-space:pre-line">' + esc(g.enunciado) + '</b><div class="pequeno" style="margin:6px 0 12px;color:var(--verde)">' + ICO('check') + ' Respuesta modelo: ' + esc(g.correcta) + ' · vale ' + fmt(g.puntos) + ' pt</div>' +
+            g.respuestas.map(function (r) {
+              var v = r.puntos;
+              return '<div class="corr' + (v === null ? ' pend' : '') + '" data-key="' + r.intento + ':' + r.k + '" data-max="' + g.puntos + '"><div class="txt"><span class="pequeno suave">' + esc(r.nombre) + (r.sugerido ? ' · coincide con el modelo' : '') + '</span><div>' + esc(r.texto) + '</div></div>' +
+                '<div class="pts">' + [0, g.puntos / 2, g.puntos].map(function (p) { return '<button type="button" data-p="' + p + '" class="' + (v === p ? 'on' : '') + '">' + fmt(p) + '</button>'; }).join('') +
+                '<input type="number" min="0" max="' + g.puntos + '" step="0.25" value="' + (v === null ? '' : v) + '" aria-label="Puntos"></div></div>';
+            }).join('') + '</div>';
+        }).join('') +
+        '<div class="guardar-fijo vidrio"><span class="suave pequeno" id="corrEstado" style="margin-right:auto">' + c.pendientes + ' sin corregir</span><button class="btn primario" id="corrGuardar" disabled>' + ICO('check') + ' Guardar correcciones</button></div>';
+      var marcar = function (fila, val) {
+        var max = Number(fila.dataset.max); val = val === '' ? '' : Math.max(0, Math.min(max, Number(val)));
+        cambios[fila.dataset.key] = val; fila.querySelector('input').value = val;
+        fila.querySelectorAll('[data-p]').forEach(function (b) { b.classList.toggle('on', val !== '' && Number(b.dataset.p) === val); });
+        fila.classList.toggle('pend', val === '');
+        $('corrGuardar').disabled = false; $('corrEstado').textContent = Object.keys(cambios).length + ' cambio(s) sin guardar';
+      };
+      c0.onclick = function (e) { var b = e.target.closest('[data-p]'); if (b) marcar(b.closest('.corr'), Number(b.dataset.p)); };
+      c0.onchange = function (e) { if (e.target.matches('.corr input')) marcar(e.target.closest('.corr'), e.target.value); };
+      $('corrGuardar').onclick = function () {
+        var lista = Object.keys(cambios).map(function (k) { var p = k.split(':'); return { intento: p[0], k: Number(p[1]), puntos: cambios[k] === '' ? null : cambios[k] }; });
+        this.disabled = true; $('corrEstado').textContent = 'Guardando…';
+        A({ action: 'corregir', lista: lista }).then(function () { AVISO('Correcciones guardadas y notas recalculadas'); S.recargar(); })
+          .catch(function (er) { AVISO(er.message, 'error'); $('corrGuardar').disabled = false; });
+      };
+    }).catch(function (e) { c0.innerHTML = '<p class="error">' + esc(e.message) + '</p>'; });
+  }
+
+  /* ---------- Banco de exámenes ---------- */
+  function banco() {
+    cargando('Abriendo el banco de exámenes…');
+    A({ action: 'banco' }).then(function (b) {
+      var area = '', tipo = '', lista = b.examenes;
+      var mias = S.panel.asignaciones.map(function (a) { return a.materia.toLowerCase(); });
+      $('pagina').innerHTML = cabeza('Banco de exámenes', 'Exámenes <b>modelo</b> listos para usar y exámenes de <b>referencia</b> que comparten tus colegas. Cópialo a tu curso y ajústalo a tu gusto.') +
+        '<div class="kpis">' + kpi('banco', 'azul', lista.length, 'Exámenes en el banco') + kpi('libro', 'amarillo', lista.filter(function (e) { return e.area === 'ACADEMICO'; }).length, 'Formación académica') +
+        kpi('ajustes', 'morado', lista.filter(function (e) { return e.area === 'TECNICO'; }).length, 'Formación técnica') + kpi('usuarios', 'verde', lista.filter(function (e) { return e.tipo === 'REFERENCIA'; }).length, 'Compartidos por colegas') + '</div>' +
+        '<div class="filtros"><label class="buscar">' + ICO('buscar') + '<input class="entrada" id="bBuscar" placeholder="Buscar por materia, tema o nivel"></label>' +
+        '<div class="segmento" id="bArea"><button class="on" data-a="">Todas</button><button data-a="MIAS">Mis materias</button><button data-a="ACADEMICO">Académico</button><button data-a="TECNICO">Técnico</button></div>' +
+        '<div class="segmento" id="bTipo"><button class="on" data-t="">Todos</button><button data-t="MODELO">Modelos</button><button data-t="REFERENCIA">Referencia</button></div></div><div id="bLista"></div>';
+      function pintar() {
+        var q = $('bBuscar').value.toLowerCase();
+        var l = lista.filter(function (e) {
+          return (!tipo || e.tipo === tipo) && (!area || (area === 'MIAS' ? mias.some(function (m) { return m.indexOf(e.materia.toLowerCase().slice(0, 8)) >= 0 || e.materia.toLowerCase().indexOf(m.slice(0, 8)) >= 0; }) : e.area === area)) &&
+            (!q || (e.titulo + ' ' + e.materia + ' ' + e.nivel + ' ' + e.autor).toLowerCase().indexOf(q) >= 0); });
+        $('bLista').innerHTML = l.length ? '<div class="rejilla">' + l.map(function (e) {
+          return '<article class="tarjeta examen-t ' + (e.area === 'TECNICO' ? 'tecnico' : 'academico') + '"><div class="franja"></div><div class="cuerpo"><div style="display:flex;gap:6px;flex-wrap:wrap">' +
+            '<span class="pildora ' + (e.area === 'TECNICO' ? 'azul' : 'amarillo') + '">' + (e.area === 'TECNICO' ? 'Técnico' : 'Académico') + '</span><span class="pildora ' + (e.tipo === 'MODELO' ? 'morado' : 'verde') + '">' + (e.tipo === 'MODELO' ? ICO('estrella') + ' Modelo' : ICO('usuarios') + ' Referencia') + '</span>' +
+            (e.nivel ? '<span class="pildora">' + esc(e.nivel) + '</span>' : '') + '</div><h3>' + esc(e.titulo) + '</h3><div class="suave pequeno">' + esc(e.materia) + (e.autor ? ' · ' + esc(e.autor) : '') + '</div>' +
+            '<div class="metricas"><div><b>' + e.nPreguntas + '</b><span>preguntas</span></div><div><b>' + (e.minutos || '—') + '</b><span>minutos</span></div><div><b>' + (e.modo === 'PRACTICA' ? 'Práctica' : 'Examen') + '</b><span>tipo</span></div></div></div>' +
+            '<div class="acciones"><button class="btn fantasma mini" data-bver="' + e.id + '">' + ICO('ver') + ' Ver preguntas</button><button class="btn primario mini" data-busar="' + e.id + '">' + ICO('copiar') + ' Usar en mi curso</button></div></article>';
+        }).join('') + '</div>' : '<div class="tarjeta vacio"><div class="chip-ico">' + ICO('banco') + '</div><p>No hay exámenes con ese filtro.</p></div>';
+      }
+      $('bBuscar').oninput = pintar;
+      $('bArea').onclick = function (e) { var x = e.target.closest('[data-a]'); if (!x) return; area = x.dataset.a; this.querySelectorAll('button').forEach(function (y) { y.classList.toggle('on', y === x); }); pintar(); };
+      $('bTipo').onclick = function (e) { var x = e.target.closest('[data-t]'); if (!x) return; tipo = x.dataset.t; this.querySelectorAll('button').forEach(function (y) { y.classList.toggle('on', y === x); }); pintar(); };
+      $('bLista').onclick = function (e) {
+        var v = e.target.closest('[data-bver]'), u = e.target.closest('[data-busar]');
+        if (v) A({ action: 'examen', id: v.dataset.bver }).then(function (r) {
+          modal('<h2>' + ICO('ver') + ' ' + esc(r.examen.titulo) + '</h2><p class="suave pequeno">' + esc(r.examen.instrucciones || '') + '</p>' + r.preguntas.map(function (q, i) {
+            return '<div class="pq"><b style="white-space:pre-line">' + (i + 1) + '. ' + esc(q.enunciado) + '</b> <span class="pildora">' + ({ MC: 'Selección', VF: 'V/F', CORTA: 'Corta' })[q.tipo] + '</span>' +
+              (q.tipo === 'CORTA' ? '<div class="pequeno" style="color:var(--verde);margin-top:6px">Modelo: ' + esc(q.correcta) + '</div>' : '<div class="pequeno" style="margin-top:6px">' + q.opciones.map(function (o) { return o === q.correcta ? '<b style="color:var(--verde)">✔ ' + esc(o) + '</b>' : esc(o); }).join(' · ') + '</div>') + '</div>';
+          }).join('') + '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px"><button class="btn claro" data-cerrar>Cerrar</button><button class="btn primario" data-busar2="' + r.examen.id + '">' + ICO('copiar') + ' Usar en mi curso</button></div>', true);
+          $('modalCaja').querySelector('[data-busar2]').onclick = function () { usarBanco(lista.find(function (x) { return x.id === r.examen.id; })); };
+        }).catch(function (er) { AVISO(er.message, 'error'); });
+        if (u) usarBanco(lista.find(function (x) { return x.id === u.dataset.busar; }));
+      };
+      pintar();
+    }).catch(function (e) { $('pagina').innerHTML = '<div class="tarjeta"><p class="error">' + esc(e.message) + '</p></div>'; });
+  }
+  function usarBanco(e) {
+    var cursos = S.panel.cursos;
+    if (!cursos.length) { AVISO('No tienes cursos asignados. Pídeselos a la coordinación.', 'error'); return; }
+    modal('<h2>' + ICO('copiar') + ' Usar en mi curso</h2><p class="suave pequeno">Se crea una copia tuya de «' + esc(e.titulo) + '». Después puedes cambiar preguntas, tiempo y reglas.</p>' +
+      '<label class="campo"><span>Título</span><input class="entrada" id="ubTit" value="' + esc(e.titulo.replace(/^Examen modelo · /, '')) + '"></label>' +
+      '<div class="fila"><label class="campo"><span>Curso</span><select class="entrada" id="ubCurso">' + cursos.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="campo"><span>Materia</span><select class="entrada" id="ubMat"></select></label></div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn claro" data-cerrar>Cancelar</button><button class="btn primario" id="ubOk">' + ICO('check') + ' Crear mi copia</button></div>');
+    var mats = function () { var c = $('ubCurso').value, m = S.panel.asignaciones.filter(function (a) { return a.curso === c; }).map(function (a) { return a.materia; });
+      if (m.indexOf(e.materia) < 0) m.push(e.materia); $('ubMat').innerHTML = m.map(function (x) { return '<option' + (x.toLowerCase().slice(0, 8) === e.materia.toLowerCase().slice(0, 8) ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join(''); };
+    $('ubCurso').onchange = mats; mats();
+    $('ubOk').onclick = function () {
+      this.disabled = true;
+      A({ action: 'usarDelBanco', id: e.id, curso: $('ubCurso').value, materia: $('ubMat').value, titulo: $('ubTit').value }).then(function (r) {
+        cerrarModal(); AVISO('Copia creada: revísala y guárdala'); return refrescarPanel().then(function () { ir('editor', r.id); });
+      }).catch(function (er) { AVISO(er.message, 'error'); $('ubOk').disabled = false; });
+    };
+  }
+
+  /* ---------- Reportes por curso ---------- */
+  function reportes() {
+    var cursos = S.panel.cursos;
+    $('pagina').innerHTML = cabeza('Reportes por curso', 'Las notas de todos tus exámenes del curso en una sola tabla. Descárgala en Excel o PDF.') +
+      '<div class="filtros"><select class="entrada" id="rCurso">' + cursos.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('') + '</select>' +
+      '<select class="entrada" id="rMat"></select><button class="btn claro" id="rXls">' + ICO('descargar') + ' Excel</button><button class="btn claro" id="rPdf">' + ICO('descargar') + ' PDF</button></div><div id="rCuerpo"></div>';
+    var D = null;
+    function mats() {
+      var c = $('rCurso').value, m = S.panel.asignaciones.filter(function (a) { return a.curso === c; }).map(function (a) { return a.materia; });
+      S.panel.examenes.forEach(function (e) { if (e.curso === c && e.materia && m.indexOf(e.materia) < 0) m.push(e.materia); });
+      $('rMat').innerHTML = '<option value="">Todas las materias</option>' + m.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
+    }
+    function cargar() {
+      if (!$('rCurso').value) { $('rCuerpo').innerHTML = '<div class="tarjeta vacio"><p>No tienes cursos asignados.</p></div>'; return; }
+      $('rCuerpo').innerHTML = '<div class="girar" style="margin:30px auto"></div>';
+      A({ action: 'reporteCurso', curso: $('rCurso').value, materia: $('rMat').value }).then(function (d) {
+        D = d;
+        if (!d.examenes.length) { $('rCuerpo').innerHTML = '<div class="tarjeta vacio"><div class="chip-ico">' + ICO('grafica') + '</div><p>Todavía no tienes exámenes en ' + esc(d.curso) + (d.materia ? ' · ' + esc(d.materia) : '') + '.</p></div>'; return; }
+        var con = d.filas.filter(function (f) { return f.promedio !== null; }), prom = con.length ? Math.round(con.reduce(function (a, f) { return a + f.promedio; }, 0) / con.length * 100) / 100 : '—';
+        var aprob = con.filter(function (f) { return f.promedio >= 70; }).length;
+        $('rCuerpo').innerHTML = '<div class="kpis">' + kpi('usuarios', 'azul', d.filas.length, 'Estudiantes') + kpi('examen', 'morado', d.examenes.length, 'Exámenes') + kpi('premio', 'amarillo', prom, 'Promedio del curso') + kpi('estrella', 'verde', aprob + ' / ' + con.length, 'Con promedio ≥ 70') + '</div>' +
+          '<div class="tarjeta desliza"><table class="tabla"><thead><tr><th>#</th><th>Estudiante</th>' + d.examenes.map(function (e) { return '<th class="rot" title="' + esc(e.titulo + ' · ' + e.materia) + '">' + esc(e.titulo.length > 34 ? e.titulo.slice(0, 32) + '…' : e.titulo) + '</th>'; }).join('') + '<th>Promedio</th></tr></thead><tbody>' +
+          d.filas.map(function (f, i) { return '<tr><td class="tenue">' + (i + 1) + '</td><td><b>' + esc(f.nombre) + '</b></td>' + f.notas.map(function (n, j) { return '<td class="n ' + (n === null ? 'tenue' : claseNota(n)) + '">' + (n === null ? '—' : n + (f.pendiente[j] ? '*' : '')) + '</td>'; }).join('') +
+            '<td class="n ' + (f.promedio === null ? '' : claseNota(f.promedio)) + '">' + (f.promedio === null ? '—' : f.promedio) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+          '<p class="suave pequeno">— = no lo presentó · * = tiene respuestas cortas sin corregir · Se toma la mejor nota de cada estudiante.</p>';
+      }).catch(function (e) { $('rCuerpo').innerHTML = '<p class="error">' + esc(e.message) + '</p>'; });
+    }
+    var nombre = function () { return 'Reporte ' + D.curso + (D.materia ? ' ' + D.materia : '') + ' ' + D.generado.slice(0, 10); };
+    $('rCurso').onchange = function () { mats(); cargar(); }; $('rMat').onchange = cargar;
+    $('rXls').onclick = function () {
+      if (!D || !D.examenes.length) return AVISO('No hay notas para descargar', 'error');
+      AVISO('Preparando el Excel…');
+      bajarExcel(nombre(), [
+        { nombre: 'Notas ' + D.curso, filas: [['#', 'Estudiante'].concat(D.examenes.map(function (e) { return e.titulo; })).concat(['Promedio'])].concat(D.filas.map(function (f, i) { return [i + 1, f.nombre].concat(f.notas.map(function (n) { return n === null ? '' : n; })).concat([f.promedio === null ? '' : f.promedio]); })) },
+        { nombre: 'Exámenes', filas: [['Examen', 'Materia', 'Tipo', 'Fecha', 'Nota mínima']].concat(D.examenes.map(function (e) { return [e.titulo, e.materia, e.modo === 'PRACTICA' ? 'Práctica' : 'Examen', e.fecha, e.notaMinima]; })) }
+      ]);
+    };
+    $('rPdf').onclick = function () {
+      if (!D || !D.examenes.length) return AVISO('No hay notas para descargar', 'error');
+      AVISO('Preparando el PDF…');
+      var muchas = D.examenes.length > 5;
+      bajarPdf(nombre(), 'Reporte de notas · ' + D.curso + (D.materia ? ' · ' + D.materia : ''), 'Docente: ' + D.docente + ' · Generado: ' + FECHA(D.generado) + ' · — no presentó · * respuestas cortas sin corregir',
+        ['#', 'Estudiante'].concat(D.examenes.map(function (e, j) { return (j + 1) + '. ' + (e.titulo.length > 28 ? e.titulo.slice(0, 26) + '…' : e.titulo); })).concat(['Promedio']),
+        D.filas.map(function (f, i) { return [i + 1, f.nombre].concat(f.notas.map(function (n, j) { return n === null ? '—' : n + (f.pendiente[j] ? '*' : ''); })).concat([f.promedio === null ? '—' : f.promedio]); }),
+        { horizontal: muchas || D.examenes.length > 3, chica: muchas, minimo: 70, desdeCol: 2, columnas: { 0: { cellWidth: 22, halign: 'center' }, 1: { cellWidth: muchas ? 120 : 160 } } });
+    };
+    mats(); cargar();
+  }
+
+  /* ---------- Ayuda ---------- */
+  function ayuda() {
+    var P = [
+      ['examen', 'Crear un examen', ['Exámenes ▸ <b>Nuevo examen</b> (o Banco ▸ <b>Usar en mi curso</b>).', 'Datos: título, curso, materia, minutos y, si quieres, la hora en que abre y cierra.', 'Preguntas: agrégalas una a una o pégalas todas con <b>Pegar preguntas</b> (la correcta lleva *).', 'Restricciones: elige un atajo (Estricto, Con avisos, Práctica, Libre) o ajusta cada regla.', '<b>Guardar</b>: obtienes el código, el enlace y el QR.']],
+      ['qr', 'Aplicarlo en el aula', ['Proyecta el QR o escribe el código en la pizarra.', 'El estudiante abre la página, escribe el código y elige su nombre.', 'En Resultados pulsa <b>Ver en vivo</b>: ves quién está dentro, cuánto lleva y quién salió.', 'Si a alguien se le va el internet, usa el reloj ⏱ para darle más minutos.']],
+      ['corregir', 'Corregir respuestas cortas', ['Las respuestas cortas quedan <b>por corregir</b>: la nota del estudiante es provisional.', 'Resultados ▸ pestaña <b>Por corregir</b>: ves la misma pregunta de todo el curso.', 'Toca 0, la mitad o el puntaje completo (o escribe el número) y pulsa <b>Guardar correcciones</b>.', 'La nota se recalcula sola.']],
+      ['grafica', 'Resultados, Excel y PDF', ['En cada examen: <b>Excel</b> (notas y análisis por pregunta) o <b>PDF</b> (lista para imprimir o archivar).', 'Reportes ▸ elige el curso: todas tus notas del curso en una tabla, en Excel o PDF.', 'La pestaña Preguntas te dice qué temas repasar: las primeras son las más falladas.']],
+      ['banco', 'Banco de exámenes', ['<b>Modelos</b>: exámenes listos de cada materia, académica y técnica.', '<b>Referencia</b>: los que tus colegas comparten (en Datos ▸ «Compartir en el banco»).', 'Filtra por Académico, Técnico o Mis materias. «Usar en mi curso» crea tu copia para editar.']],
+      ['imprimir', 'Versión en papel', ['Editar ▸ Compartir ▸ <b>Versión en papel (PDF)</b>: el examen listo para imprimir y, al final, la clave.']],
+      ['candado', 'Qué hace la seguridad', ['Pantalla completa y entrega automática si sale de la ventana (o avisos antes, si lo eliges).', 'No deja copiar, pegar ni imprimir. Marca de agua con el nombre.', 'Señuelos anti-IA: si fotografían la pregunta, la IA tiende a elegir una opción incorrecta.']]
+    ];
+    $('pagina').innerHTML = cabeza('Ayuda', 'Video tutorial y guía paso a paso.', '<a class="btn claro" href="guia.html" target="_blank" rel="noopener">' + ICO('libro') + ' Guía completa</a><a class="btn claro" href="material/Guia_Examen_Seguro.pdf" target="_blank" rel="noopener">' + ICO('descargar') + ' Guía en PDF</a>') +
+      '<div class="dos"><div class="tarjeta"><h3>' + ICO('video') + ' Video tutorial</h3><video id="vidAyuda" controls preload="metadata" playsinline style="width:100%;border-radius:14px;background:#0b0b14;aspect-ratio:16/9" src="material/tutorial.mp4"></video>' +
+      '<p class="suave pequeno" id="vidNota" style="margin:8px 0 0">Cómo crear, aplicar y corregir un examen en pocos minutos.</p></div>' +
+      '<div class="ayuda-pasos">' + P.map(function (p, i) { return '<details' + (i === 0 ? ' open' : '') + '><summary><span class="chip-ico">' + ICO(p[0]) + '</span>' + p[1] + '</summary><ol>' + p[2].map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ol></details>'; }).join('') + '</div></div>';
+    $('vidAyuda').onerror = function () { $('vidNota').textContent = 'El video todavía no está disponible. Mientras tanto, usa la guía.'; };
   }
 
   /* ---------- Estudiantes ---------- */

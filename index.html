@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="es.css?v=2">
+<link rel="stylesheet" href="es.css?v=3">
 <script src="config.js?v=2"></script>
-<script src="es.js?v=2"></script>
+<script src="es.js?v=3"></script>
 <style>
   .centro { min-height: 100vh; display: grid; place-items: center; padding: 20px 16px 90px; }
   .portada { width: min(480px, 100%); padding: 0; overflow: hidden; }
@@ -286,6 +286,7 @@
     API({ action: 'guardar', intento: st.intento, token: st.token, respuestas: st.resp }).then(function (r) {
       $('eGuardado').innerHTML = ICO('check') + ' Respuestas guardadas';
       if (r.estado !== 'EN_CURSO') terminar('Se acabó el tiempo');
+      else if (r.limite && r.limite > st.limite) { st.limite = r.limite; AVISO('Tu profesor te dio más tiempo'); }
     }).catch(function () { $('eGuardado').textContent = 'Sin conexión: se guardará al entregar.'; });
   }
 
@@ -335,11 +336,12 @@
       if (r.nota !== undefined) {
         var c = r.nota >= 70 ? 'var(--verde)' : r.nota >= 50 ? 'var(--amarillo)' : 'var(--rojo)';
         $('fNota').innerHTML = '<div class="anillo" style="--p:' + r.nota + ';--c:' + c + '"><div><span><b>' + r.nota + '</b><small>de 100</small></span></div></div>' +
-          '<p style="text-align:center;margin:0 0 6px"><b>' + (r.aprobado ? '🎉 ¡Muy bien!' : '💪 Sigue practicando') + '</b> · ' + r.correctas + ' de ' + r.total + ' correctas</p>';
+          '<p style="text-align:center;margin:0 0 6px"><b>' + (r.pendiente ? '📝 Nota provisional' : r.aprobado ? '🎉 ¡Muy bien!' : '💪 Sigue practicando') + '</b> · ' + r.correctas + ' de ' + r.total + ' correctas</p>' +
+          (r.pendiente ? '<p class="suave pequeno" style="text-align:center;margin:0">Tu profesor corregirá ' + r.pendiente + ' respuesta(s) corta(s) y tu nota puede cambiar.</p>' : '');
       } else $('fNota').innerHTML = '<p class="suave" style="text-align:center">Tu profesor te dará la nota.</p>';
       if (r.revision) $('fRev').innerHTML = '<h3 style="margin-top:18px">' + ICO('lista') + ' Revisión</h3>' + r.revision.map(function (q) {
-        return '<div class="rev' + (q.bien ? '' : ' mal') + '"><b>' + q.n + '. ' + esc(q.enunciado) + '</b>' +
-          (q.bien ? '<div class="r" style="color:var(--verde)">' + ICO('check') + '<span>' + esc(q.tu) + '</span></div>'
+        return '<div class="rev' + (q.bien || q.pendiente ? '' : ' mal') + '"><b>' + q.n + '. ' + esc(q.enunciado) + '</b>' +
+          (q.pendiente ? '<div class="r">' + ICO('editar') + '<span>Tu respuesta: ' + esc(q.tu) + ' · la corrige tu profesor</span></div>' : q.bien ? '<div class="r" style="color:var(--verde)">' + ICO('check') + '<span>' + esc(q.tu) + '</span></div>'
             : '<div class="r" style="color:var(--rojo)">' + ICO('x') + '<span>Tu respuesta: ' + esc(q.tu || '(sin responder)') + '</span></div><div class="r" style="color:var(--verde)">' + ICO('check') + '<span>Correcta: ' + esc(q.correcta) + '</span></div>') +
           (q.explicacion ? '<div class="r suave">' + ICO('libro') + '<span>' + esc(q.explicacion) + '</span></div>' : '') + '</div>';
       }).join('');

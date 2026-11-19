@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guía de Examen Seguro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="es.css?v=3">
+<script src="es.js?v=3"></script>
+<style>
+  .guia { max-width: 900px; margin: 0 auto; padding: 28px 16px 80px; }
+  .portada { padding: 30px 28px; border-radius: 26px; color: #fff; background: var(--marca); position: relative; overflow: hidden; margin-bottom: 22px; }
+  .portada::after { content: ''; position: absolute; width: 280px; height: 280px; right: -80px; top: -120px; border-radius: 50%; background: rgb(255 255 255 / .14); }
+  .portada h1 { color: #fff; font-size: 32px; margin: 10px 0 6px; } .portada p { margin: 0; color: rgb(255 255 255 / .88); }
+  .indice { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin: 0 0 22px; }
+  .indice a { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 14px; background: var(--sup-fuerte); border: 1px solid var(--linea); font-weight: 700; text-decoration: none; color: var(--texto); }
+  section.tarjeta { margin-bottom: 18px; padding: 22px 24px; }
+  section h2 { display: flex; gap: 10px; align-items: center; margin-top: 0; }
+  section h3 { margin: 16px 0 6px; font-size: 16px; }
+  ol, ul { padding-left: 22px; } li { margin: 5px 0; }
+  .nota { padding: 12px 14px; border-radius: 14px; background: var(--sup2); font-size: 14.5px; margin: 10px 0; }
+  pre { padding: 14px; border-radius: 14px; background: var(--sup2); overflow-x: auto; font-size: 13.5px; white-space: pre-wrap; }
+  .tabla td, .tabla th { vertical-align: top; }
+  .acciones-g { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  @media print { .no-imprimir, .fondo { display: none !important; } body { background: #fff !important; } section.tarjeta { box-shadow: none; break-inside: avoid; border: 1px solid #ddd; } .portada { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style>
+</head>
+<body>
+<div class="fondo"><i></i><i></i><i></i><i></i></div>
+<main class="guia">
+  <div class="portada">
+    <div class="chip-ico" id="logoG" style="background:rgb(255 255 255 / .2);color:#fff"></div>
+    <h1>Guía de Examen Seguro</h1>
+    <p>Politécnico Cristiano James Davis · Para docentes, coordinación y estudiantes · Versión 2.1</p>
+    <div class="acciones-g no-imprimir"><a class="btn claro" href="docente.html">Ir al panel docente</a><a class="btn claro" href="index.html">Página del estudiante</a><button class="btn claro" onclick="print()">Imprimir o guardar en PDF</button></div>
+  </div>
+
+  <nav class="indice no-imprimir">
+    <a href="#entrar">1. Entrar por primera vez</a><a href="#crear">2. Crear un examen</a><a href="#preguntas">3. Escribir o pegar preguntas</a>
+    <a href="#reglas">4. Elegir las restricciones</a><a href="#aplicar">5. Aplicarlo en el aula</a><a href="#corregir">6. Corregir respuestas cortas</a>
+    <a href="#resultados">7. Resultados, Excel y PDF</a><a href="#reportes">8. Reportes por curso</a><a href="#banco">9. Banco de exámenes</a>
+    <a href="#papel">10. Versión en papel</a><a href="#estudiante">11. Lo que ve el estudiante</a><a href="#coordinacion">12. Coordinación</a><a href="#preguntas-f">13. Preguntas frecuentes</a>
+  </nav>
+
+  <section class="tarjeta" id="video">
+    <h2><span class="chip-ico"></span>Video tutorial</h2>
+    <video controls preload="metadata" playsinline style="width:100%;border-radius:16px;background:#0b0b14;aspect-ratio:16/9" src="material/tutorial.mp4"></video>
+    <p class="suave pequeno">Si no carga, abre el panel ▸ Ayuda.</p>
+  </section>
+
+  <section class="tarjeta" id="entrar">
+    <h2>1. Entrar por primera vez</h2>
+    <ol>
+      <li>La coordinación te entrega tu <b>usuario</b> (por ejemplo <code>nombre.apellido</code>) y un <b>código de activación</b> (XXXX-XXXX).</li>
+      <li>Abre el <b>panel docente</b> y pulsa <b>Activar mi cuenta</b>.</li>
+      <li>Escribe el usuario, el código y crea tu contraseña (mínimo 8 caracteres). El código deja de servir al usarlo.</li>
+      <li>Las próximas veces entra con <b>Entrar</b>: usuario y contraseña.</li>
+    </ol>
+    <div class="nota">¿Olvidaste la contraseña? Pide a la coordinación «Reiniciar acceso»: te da un código nuevo. Puedes cambiar tu contraseña en <b>Mi cuenta</b>.</div>
+  </section>
+
+  <section class="tarjeta" id="crear">
+    <h2>2. Crear un examen</h2>
+    <ol>
+      <li><b>Exámenes ▸ Nuevo examen</b> (o desde el <a href="#banco">Banco</a>, con «Usar en mi curso»).</li>
+      <li><b>Datos</b>: título, curso, materia y tipo: <b>Examen</b> (con nota, un intento) o <b>Práctica / quiz</b> (intentos libres y ve las respuestas).</li>
+      <li><b>Minutos</b>: el reloj del estudiante (0 = sin límite). <b>Preguntas a mostrar</b>: si pones menos que las del banco, a cada estudiante le tocan otras al azar.</li>
+      <li><b>Abre / Cierra</b> (opcional): fuera de ese horario el código no funciona.</li>
+      <li><b>Nota mínima</b>: para contar aprobados (70 por defecto).</li>
+      <li>Pulsa <b>Guardar</b>: obtienes el código, el enlace y el QR.</li>
+    </ol>
+  </section>
+
+  <section class="tarjeta" id="preguntas">
+    <h2>3. Escribir o pegar preguntas</h2>
+    <p>Hay tres tipos: <b>Selección múltiple</b>, <b>Verdadero o falso</b> y <b>Respuesta corta</b>. Cada pregunta tiene sus puntos (la nota final se calcula sobre 100).</p>
+    <h3>Pegar muchas de un golpe</h3>
+    <p>Preguntas ▸ <b>Pegar preguntas</b>. Separa cada pregunta con una línea en blanco y marca la correcta con <b>*</b>:</p>
+<pre>1. ¿Qué instrucción muestra un valor en pantalla?
+a) Leer
+*b) Escribir
+c) Definir
+d) Mientras
+Explicación: Escribir muestra datos.
+
+2. El tipo Real guarda decimales.
+Respuesta: V
+
+3. ¿Qué es una variable?
+Respuesta: espacio de memoria que guarda un dato</pre>
+    <div class="nota">Sin opciones y con «Respuesta:» se vuelve <b>respuesta corta</b>. Esa respuesta es la <b>respuesta modelo</b>: te sirve de guía, pero la nota de esa pregunta la pones tú (ver <a href="#corregir">Corregir</a>).</div>
+  </section>
+
+  <section class="tarjeta" id="reglas">
+    <h2>4. Elegir las restricciones</h2>
+    <p>En el paso <b>Restricciones</b> usa un atajo o enciende y apaga cada regla:</p>
+    <table class="tabla">
+      <thead><tr><th>Regla</th><th>Qué hace</th></tr></thead>
+      <tbody>
+        <tr><td>Pantalla completa</td><td>El examen ocupa toda la pantalla, sin barra de direcciones ni pestañas.</td></tr>
+        <tr><td>Entregar si sale</td><td>Si cambia de pestaña, minimiza o sale de la pantalla completa, se entrega con lo que tenga.</td></tr>
+        <tr><td>Avisos antes de entregar</td><td>Cuántas salidas se le perdonan con una advertencia (0 = ninguna).</td></tr>
+        <tr><td>Bloquear copiar y pegar</td><td>No puede seleccionar, copiar, pegar, imprimir ni usar el clic derecho.</td></tr>
+        <tr><td>Señuelos anti-IA</td><td>Agrega texto oculto que lleva a una IA a elegir una opción incorrecta si fotografían la pregunta.</td></tr>
+        <tr><td>Marca de agua</td><td>Su nombre aparece de fondo; desanima las fotos.</td></tr>
+        <tr><td>Permitir celulares</td><td>Deja entrar desde equipos sin pantalla completa (iPhone) y vigila las salidas.</td></tr>
+        <tr><td>Preguntas / opciones al azar</td><td>Cada estudiante recibe otro orden.</td></tr>
+        <tr><td>Mostrar nota / respuestas</td><td>Al terminar ve su nota y, si lo permites, cuáles falló con la explicación.</td></tr>
+        <tr><td>Intentos permitidos</td><td>Cuántas veces puede hacerlo (0 = sin límite).</td></tr>
+      </tbody>
+    </table>
+    <p class="suave pequeno">Atajos: <b>Estricto</b> (examen en el laboratorio), <b>Con avisos</b> (da 2 avisos), <b>Práctica guiada</b> (repaso con respuestas) y <b>Libre</b> (tarea en casa, sirve en celular).</p>
+  </section>
+
+  <section class="tarjeta" id="aplicar">
+    <h2>5. Aplicarlo en el aula</h2>
+    <ol>
+      <li>En <b>Compartir</b> copia el código, el enlace o proyecta el <b>QR</b> («Mostrar en grande»).</li>
+      <li>En un examen, publica en Classroom solo el enlace y da el código en el aula («Copiar texto para Classroom» lo arma por ti).</li>
+      <li>Abre <b>Resultados ▸ Ver en vivo</b>: se actualiza cada 15 segundos y ves quién está dentro, cuántas lleva y quién salió de la ventana.</li>
+      <li>Si a alguien se le va el internet o llega tarde, pulsa el <b>reloj ⏱</b> en su fila para darle +5, +10 o +15 minutos.</li>
+      <li>Puedes <b>entregar ya</b> un intento en curso o <b>anular</b> uno para que lo repita.</li>
+    </ol>
+  </section>
+
+  <section class="tarjeta" id="corregir">
+    <h2>6. Corregir respuestas cortas</h2>
+    <p>Solo el docente sabe si una respuesta abierta está bien. Por eso:</p>
+    <ol>
+      <li>Al entregar, el estudiante ve una <b>nota provisional</b> y el aviso de que corregirás sus respuestas cortas.</li>
+      <li>En la tarjeta del examen verás «<b>N por corregir</b>».</li>
+      <li>Abre <b>Resultados ▸ Por corregir</b>: aparece cada pregunta con la respuesta modelo y la respuesta de cada estudiante, una debajo de otra.</li>
+      <li>Toca <b>0</b>, <b>la mitad</b> o <b>el puntaje completo</b>, o escribe los puntos exactos.</li>
+      <li>Pulsa <b>Guardar correcciones</b>: la nota se recalcula sola en resultados, Excel, PDF y reportes.</li>
+    </ol>
+    <div class="nota">Las filas amarillas aún no están corregidas. «Coincide con el modelo» es solo una pista.</div>
+  </section>
+
+  <section class="tarjeta" id="resultados">
+    <h2>7. Resultados, Excel y PDF</h2>
+    <ul>
+      <li><b>Indicadores</b>: entregas, promedio, mediana, aprobados, tiempo promedio y cuántos salieron de la ventana.</li>
+      <li><b>Distribución de notas</b> y lista de quienes <b>no presentaron</b>.</li>
+      <li>Pestaña <b>Estudiantes</b>: nota, correctas, tiempo, salidas y cómo terminó. El ojo 👁 muestra sus respuestas una por una.</li>
+      <li>Pestaña <b>Preguntas</b>: de la más fallada a la más fácil y qué opción eligieron. Úsala para repasar en clase.</li>
+      <li><b>Excel</b>: hoja de resultados y hoja de análisis por pregunta. <b>PDF</b>: lista para imprimir o archivar (notas bajas en rojo).</li>
+    </ul>
+  </section>
+
+  <section class="tarjeta" id="reportes">
+    <h2>8. Reportes por curso</h2>
+    <ol>
+      <li>Menú <b>Reportes</b> ▸ elige el curso y, si quieres, la materia.</li>
+      <li>Verás una tabla: un estudiante por fila, un examen por columna y su promedio (se toma la mejor nota de cada uno).</li>
+      <li>Descárgala en <b>Excel</b> o en <b>PDF</b>. «—» = no lo presentó; «*» = tiene respuestas cortas sin corregir.</li>
+    </ol>
+  </section>
+
+  <section class="tarjeta" id="banco">
+    <h2>9. Banco de exámenes</h2>
+    <ul>
+      <li><b>Modelos</b>: exámenes listos de cada materia, de <b>Formación Académica</b> (por ciclo) y de <b>Formación Técnico Profesional</b> (por módulo).</li>
+      <li><b>Referencia</b>: los que tus colegas comparten. Para compartir el tuyo: Editar ▸ Datos ▸ «Compartir en el banco de exámenes». Nadie ve las notas de tus estudiantes.</li>
+      <li>Filtra por <b>Académico</b>, <b>Técnico</b> o <b>Mis materias</b>, y busca por tema.</li>
+      <li><b>Ver preguntas</b> para revisarlo y <b>Usar en mi curso</b> para crear tu copia. Cambia lo que quieras antes de aplicarla.</li>
+    </ul>
+  </section>
+
+  <section class="tarjeta" id="papel">
+    <h2>10. Versión en papel</h2>
+    <p>Editar ▸ <b>Compartir</b> ▸ <b>Versión en papel (PDF)</b>: el examen con espacio para nombre y nota y, en la última hoja, la clave de respuestas. Sirve si falla el internet o para estudiantes que lo necesiten.</p>
+  </section>
+
+  <section class="tarjeta" id="estudiante">
+    <h2>11. Lo que ve el estudiante</h2>
+    <ol>
+      <li>Abre la página del estudiante (o escanea el QR), escribe el <b>código</b> y elige su nombre de la lista.</li>
+      <li>Lee las reglas y pulsa <b>Empezar</b>: el examen se abre en pantalla completa con el reloj arriba.</li>
+      <li>Puede saltar entre preguntas y marcar «Revisar». Las respuestas se guardan solas.</li>
+      <li>Si sale de la ventana, el examen se entrega (o recibe un aviso, según tus reglas). El botón <b>Salir</b> también entrega.</li>
+      <li>Al terminar ve su nota (provisional si hay respuestas cortas) y, en las prácticas, las respuestas correctas.</li>
+    </ol>
+  </section>
+
+  <section class="tarjeta" id="coordinacion">
+    <h2>12. Coordinación</h2>
+    <ul>
+      <li>Menú <b>Docentes</b>: ver quién activó su cuenta, copiar usuario y código de activación, reiniciar el acceso, cambiar el rol o desactivar.</li>
+      <li>Botón de <b>materias</b>: cursos y materias de cada docente (vienen del horario).</li>
+      <li>La coordinación ve todos los exámenes y reportes del centro.</li>
+    </ul>
+  </section>
+
+  <section class="tarjeta" id="preguntas-f">
+    <h2>13. Preguntas frecuentes</h2>
+    <h3>¿Funciona en celular?</h3><p>Sí. En exámenes estrictos, activa «Permitir celulares» si algunos lo harán desde el teléfono; en iPhone no hay pantalla completa, pero se registran las salidas.</p>
+    <h3>Un estudiante dice que se le cerró el examen</h3><p>Mira en Resultados «Cómo terminó» y sus salidas. Si fue un fallo real, <b>anula</b> el intento para que lo repita.</p>
+    <h3>¿Puedo cambiar una pregunta después de aplicarlo?</h3><p>Sí, pero las notas ya entregadas no se recalculan. Para corregir puntos de un estudiante usa «Por corregir».</p>
+    <h3>¿Dónde quedan los datos?</h3><p>En la hoja de Google del centro. Las respuestas correctas nunca llegan al navegador del estudiante antes de entregar.</p>
+  </section>
+</main>
+<script>document.getElementById('logoG').innerHTML = ICO('escudo'); document.querySelectorAll('section h2 .chip-ico').forEach(function (x) { x.innerHTML = ICO('video'); });</script>
+</body>
+</html>
