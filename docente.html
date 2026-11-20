@@ -1126,7 +1126,8 @@
     var caja = document.createElement('div'); caja.className = 'tarjeta'; caja.id = 'cIA'; caja.style.marginTop = '14px';
     caja.innerHTML = '<h3>' + ICO('llave') + ' Conectar mi IA</h3><p class="suave pequeno" style="margin:4px 0 10px">Crea una clave para que tu IA (Claude Code, Gemini CLI, Codex, Cursor…) haga exámenes por ti. ' +
       'Dura 30 días y tiene los mismos permisos que tú. Guía paso a paso: <a href="guia.html#mi-ia" target="_blank">Conectar tu IA</a>.</p>' +
-      '<div class="filtros"><input class="entrada" id="iaNombre" maxlength="40" placeholder="Nombre (ej. Claude en mi laptop)"><button class="btn primario" id="iaCrear">' + ICO('mas') + ' Crear clave</button></div>' +
+      '<div class="filtros"><input class="entrada" id="iaNombre" maxlength="40" placeholder="Nombre (ej. Claude en mi laptop)"><button class="btn primario" id="iaCrear">' + ICO('mas') + ' Crear clave</button><button class="btn claro" id="iaVideo">' + ICO('video') + ' Ver video: cómo usar esta clave</button></div>' +
+      '<div id="iaVid" class="oculto" style="margin:10px 0"><video controls preload="none" playsinline style="width:100%;border-radius:14px;background:#0b0b14;aspect-ratio:16/9" src="material/conectar-ia.mp4" poster="material/conectar-ia.jpg"></video></div>' +
       '<div id="iaNueva"></div><div id="iaLista" class="suave pequeno">Cargando…</div>';
     $('pagina').appendChild(caja);
     function lista() {
@@ -1141,6 +1142,7 @@
       var b = e.target.closest('[data-rev]'); if (!b || !confirm('¿Revocar esta clave? La IA que la usa deja de conectarse.')) return;
       A({ action: 'revocarClaveIA', id: b.dataset.rev }).then(function () { AVISO('Clave revocada'); lista(); }).catch(function (er) { AVISO(er.message, 'error'); });
     };
+    $('iaVideo').onclick = function () { var v = $('iaVid'); v.classList.toggle('oculto'); if (!v.classList.contains('oculto')) v.querySelector('video').play().catch(function () {}); };
     $('iaCrear').onclick = function () {
       A({ action: 'crearClaveIA', nombre: $('iaNombre').value }).then(function (r) {
         var url = window.EXAMEN_API + '?k=' + r.clave, j = JSON.stringify(url);
@@ -1152,6 +1154,7 @@
           ['Otra IA: dirección del servidor MCP (HTTP)', url]
         ];
         $('iaNueva').innerHTML = '<div class="pildora ambar" style="display:block;white-space:normal;margin:10px 0;padding:10px"><b>Copia esto ahora:</b> la clave no se vuelve a mostrar. Vence el ' + esc(String(r.vence).slice(0, 10)) + '. No la compartas: quien la tenga entra como tú.</div>' +
+          '<div class="pildora rojo" style="display:block;white-space:normal;margin:0 0 10px;padding:10px"><b>⚠ No la pegues en el chat de tu IA.</b> Claude Code: pulsa la tecla Windows, escribe <b>PowerShell</b>, ábrelo, haz clic derecho para pegar y pulsa Enter. Luego abre Claude Code y escribe <b>/mcp</b>: debe salir examen-seguro conectado. Después pídele: «créame un examen en borrador de…».</div>' +
           cmds.map(function (c, i) { return '<label class="campo"><span>' + esc(c[0]) + '</span><div class="filtros"><textarea class="entrada" rows="' + (c[1].indexOf('\n') >= 0 ? 2 : 1) + '" readonly style="font-family:monospace;font-size:12px">' + esc(c[1]) + '</textarea><button class="btn claro mini" data-cp="' + i + '">' + ICO('copiar') + '</button></div></label>'; }).join('');
         $('iaNueva').onclick = function (e) { var b = e.target.closest('[data-cp]'); if (b) copiar(cmds[b.dataset.cp][1]); };
         $('iaNombre').value = ''; lista();

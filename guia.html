@@ -172,21 +172,47 @@ Explicación: La RAM es volátil.</pre>
   <section class="tarjeta" id="mi-ia">
     <h2>3f. Conectar tu propia IA</h2>
     <p>Si usas una IA en tu computadora (Claude Code, Gemini CLI, Codex o Cursor), puedes conectarla a Examen Seguro. Así le pides, por ejemplo: <i>«créame un examen de 20 preguntas de redes para 5to B, en borrador»</i>, y ella lo crea en tu cuenta.</p>
+    <video controls preload="none" playsinline style="width:100%;border-radius:16px;background:#0b0b14;aspect-ratio:16/9" src="material/conectar-ia.mp4" poster="material/conectar-ia.jpg"></video>
+    <div class="nota" style="border:2px solid #dc2626"><b>⚠ Muy importante:</b> la línea que copias lleva tu <b>clave</b>, y la clave entra con tu cuenta. <b>Nunca la pegues en el chat de tu IA</b> (ni en ChatGPT, Gemini, WhatsApp o un correo). Se pega <b>solo en PowerShell</b> (o en el archivo de configuración de tu IA), como se explica abajo.</div>
+
+    <h3>Paso 1. Crear tu clave</h3>
     <ol>
-      <li>En el panel entra a <b>Mi cuenta ▸ Conectar mi IA</b>.</li>
-      <li>Escribe un nombre (por ejemplo «Claude en mi laptop») y pulsa <b>Crear clave</b>.</li>
-      <li>Copia la línea de tu IA <b>en ese momento</b>: la clave no se vuelve a mostrar.</li>
-      <li>Pégala según tu IA:
-        <ul>
-          <li><b>Claude Code:</b> pega el comando en la terminal (PowerShell) y pulsa Enter. Abre Claude Code y escribe <code>/mcp</code>: debe salir <b>examen-seguro ✔</b>.</li>
-          <li><b>Gemini CLI:</b> abre el archivo <code>.gemini/settings.json</code> de tu carpeta de usuario y agrega el bloque <code>mcpServers</code> (si ya tienes uno, agrega solo <code>examen-seguro</code> dentro).</li>
-          <li><b>Codex:</b> agrega las dos líneas al final de <code>.codex/config.toml</code> en tu carpeta de usuario.</li>
-          <li><b>Cursor:</b> en <b>Settings ▸ MCP ▸ Add new MCP server</b>, o pega el bloque en <code>.cursor/mcp.json</code>.</li>
-          <li><b>Otra IA:</b> usa la «dirección del servidor MCP (HTTP)».</li>
-        </ul>
-      </li>
-      <li>Reinicia tu IA y pídele: <i>«muéstrame mis cursos y exámenes de Examen Seguro»</i>. Si responde con tu lista, ya está conectada.</li>
+      <li>En el panel docente entra a <b>Mi cuenta</b> y baja hasta <b>Conectar mi IA</b>.</li>
+      <li>Escribe un nombre para recordarla (por ejemplo «Claude en mi laptop») y pulsa <b>Crear clave</b>.</li>
+      <li>Aparecen varias líneas, una por cada IA. Pulsa el botón <b>copiar</b> que está al lado de la tuya. <b>Hazlo en ese momento:</b> la clave no se vuelve a mostrar. Si cierras la página sin copiarla, crea otra.</li>
     </ol>
+
+    <h3>Paso 2. Pegarla en PowerShell (Claude Code)</h3>
+    <ol>
+      <li>Pulsa la tecla <b>Windows</b> ⊞ del teclado, escribe <b>PowerShell</b> y abre <b>Windows PowerShell</b>. Se abre una ventana azul o negra.</li>
+      <li>Haz <b>clic derecho</b> dentro de la ventana (o pulsa <b>Ctrl+V</b>). Aparece la línea que empieza con <code>claude mcp add --transport http --scope user examen-seguro …</code></li>
+      <li>Pulsa <b>Enter</b>. Debe salir: <code>Added HTTP MCP server examen-seguro to user config</code>. Ya puedes cerrar PowerShell.</li>
+      <li>Si sale «claude no se reconoce como comando», primero instala Claude Code y vuelve a intentarlo.</li>
+    </ol>
+
+    <h3>Paso 3. Comprobar en tu IA</h3>
+    <ol>
+      <li>Abre Claude Code (en PowerShell escribe <code>claude</code> y pulsa Enter, o ábrelo desde la app de escritorio).</li>
+      <li>Escribe <code>/mcp</code> y pulsa Enter: debe salir <b>examen-seguro ✔ connected</b>.</li>
+      <li>Pídele: <i>«Muéstrame mis cursos y exámenes de Examen Seguro»</i>. Si responde con tu lista, ya está conectada. La primera vez te pedirá permiso para usar las herramientas: acéptalo.</li>
+    </ol>
+
+    <h3>Paso 4. Crear y subir un examen con tu IA</h3>
+    <ol>
+      <li>Pídeselo con tus palabras, por ejemplo: <i>«En Examen Seguro, créame un examen en borrador de 10 preguntas de redes, capa de red, para 5to B, de 30 minutos, con selección múltiple y verdadero o falso»</i>.</li>
+      <li>Tu IA lee los tipos de pregunta, escribe las preguntas con sus respuestas y guarda el examen <b>en borrador</b> (inactivo). Al final te dice el título y el código.</li>
+      <li>Vuelve al panel ▸ <b>Exámenes</b>. Abre el examen nuevo, revisa cada pregunta y corrige lo que haga falta.</li>
+      <li>Cuando esté bien, márcalo <b>Activo</b>, pulsa <b>Guardar</b> y luego <b>Compartir</b> para dar el código, el enlace o el QR a tus estudiantes.</li>
+      <li>También puedes pedirle a tu IA: <i>«agrega 5 preguntas de ordenar pasos»</i>, <i>«dame los resultados del examen de redes»</i> o <i>«qué respuestas cortas me faltan por corregir»</i>.</li>
+    </ol>
+
+    <h3>Otras IA</h3>
+    <ul>
+      <li><b>Gemini CLI:</b> abre el archivo <code>.gemini/settings.json</code> de tu carpeta de usuario y agrega el bloque <code>mcpServers</code> (si ya tienes uno, agrega solo <code>examen-seguro</code> dentro). Reinicia Gemini y escribe <code>/mcp</code>.</li>
+      <li><b>Codex:</b> agrega las dos líneas al final de <code>.codex/config.toml</code> en tu carpeta de usuario.</li>
+      <li><b>Cursor:</b> en <b>Settings ▸ MCP ▸ Add new MCP server</b>, o pega el bloque en <code>.cursor/mcp.json</code>.</li>
+      <li><b>Otra IA:</b> usa la «dirección del servidor MCP (HTTP)» en su configuración de servidores MCP, nunca en el chat.</li>
+    </ul>
     <p><b>Qué puede hacer tu IA:</b> lo mismo que tú en el panel: crear, cambiar, copiar y borrar exámenes, usar el banco, generar preguntas, ver resultados, corregir respuestas cortas, dar más tiempo, anular intentos y ver o agregar estudiantes de tus cursos. <b>No puede</b> cambiar contraseñas, crear claves ni administrar docentes.</p>
     <div class="nota">La clave dura <b>30 días</b> y entra como tú: no la compartas ni la publiques. Si la pierdes o termina el plazo, revócala y crea otra. Puedes tener hasta 5 claves activas. Cada clave permite 150 acciones por hora. Tu IA verá los <b>nombres</b> y notas de tus estudiantes, pero nunca edad, dirección ni teléfono (Examen Seguro no los guarda). Revisa siempre lo que crea la IA antes de activar un examen.</div>
   </section>
