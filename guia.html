@@ -38,7 +38,7 @@
 
   <nav class="indice no-imprimir">
     <a href="#entrar">1. Entrar por primera vez</a><a href="#crear">2. Crear un examen</a><a href="#preguntas">3. Escribir o pegar preguntas</a>
-    <a href="#dinamicas">3b. Preguntas dinámicas</a><a href="#media">3c. Imagen, video y audio</a><a href="#ayudante">3d. Demo y Ayudante</a><a href="#reglas">4. Elegir las restricciones</a><a href="#aplicar">5. Aplicarlo en el aula</a><a href="#corregir">6. Corregir respuestas cortas</a>
+    <a href="#dinamicas">3b. Preguntas dinámicas</a><a href="#media">3c. Imagen, video y audio</a><a href="#ayudante">3d. Demo y Ayudante</a><a href="#ia">3e. Generar con IA</a><a href="#reglas">4. Elegir las restricciones</a><a href="#aplicar">5. Aplicarlo en el aula</a><a href="#corregir">6. Corregir respuestas cortas</a>
     <a href="#resultados">7. Resultados, Excel y PDF</a><a href="#reportes">8. Reportes por curso</a><a href="#banco">9. Banco de exámenes</a>
     <a href="#papel">10. Versión en papel</a><a href="#estudiante">11. Lo que ve el estudiante</a><a href="#coordinacion">12. Coordinación</a><a href="#preguntas-f">13. Preguntas frecuentes</a>
   </nav>
@@ -157,6 +157,39 @@ Explicación: La RAM es volátil.</pre>
     <div class="nota">El estudiante puede tocar la imagen para verla más grande. Tocar el video no cuenta como salida de la ventana.</div>
   </section>
 
+  <section class="tarjeta" id="ia">
+    <h2>3e. Generar preguntas con IA</h2>
+    <p>En el paso <b>Preguntas</b> pulsa <b>✨ Generar con IA</b>:</p>
+    <ol>
+      <li>Escribe el <b>tema</b> o pega el <b>texto</b> de tu clase (si pegas texto, las preguntas salen solo de ese texto).</li>
+      <li>Elige la <b>dificultad</b>: fácil, media, difícil o mixta, y cuántas preguntas quieres (hasta 30).</li>
+      <li>Marca <b>solo los tipos que quieres</b>: selección, V/F, V/F justificada, respuesta corta, ordenar, algoritmo, diagrama de flujo, relacionar, clasificar, completar, banco de palabras o numérica.</li>
+      <li>Pulsa <b>Generar</b>. En pocos segundos ves cada pregunta con su respuesta. Desmarca las que no te gusten y pulsa <b>Agregar</b>.</li>
+      <li>Revísalas, corrige lo que haga falta y pulsa <b>Guardar</b>.</li>
+    </ol>
+    <div class="nota">Usa IA gratis (Gemini de Google; si está ocupada, Groq u OpenRouter). Puede equivocarse: revisa siempre las respuestas. No pegues nombres, cédulas ni teléfonos de estudiantes: el sistema bloquea cédulas y teléfonos. Límite: 25 generaciones cada 6 horas por docente.</div>
+  </section>
+  <section class="tarjeta" id="mi-ia">
+    <h2>3f. Conectar tu propia IA</h2>
+    <p>Si usas una IA en tu computadora (Claude Code, Gemini CLI, Codex o Cursor), puedes conectarla a Examen Seguro. Así le pides, por ejemplo: <i>«créame un examen de 20 preguntas de redes para 5to B, en borrador»</i>, y ella lo crea en tu cuenta.</p>
+    <ol>
+      <li>En el panel entra a <b>Mi cuenta ▸ Conectar mi IA</b>.</li>
+      <li>Escribe un nombre (por ejemplo «Claude en mi laptop») y pulsa <b>Crear clave</b>.</li>
+      <li>Copia la línea de tu IA <b>en ese momento</b>: la clave no se vuelve a mostrar.</li>
+      <li>Pégala según tu IA:
+        <ul>
+          <li><b>Claude Code:</b> pega el comando en la terminal (PowerShell) y pulsa Enter. Abre Claude Code y escribe <code>/mcp</code>: debe salir <b>examen-seguro ✔</b>.</li>
+          <li><b>Gemini CLI:</b> abre el archivo <code>.gemini/settings.json</code> de tu carpeta de usuario y agrega el bloque <code>mcpServers</code> (si ya tienes uno, agrega solo <code>examen-seguro</code> dentro).</li>
+          <li><b>Codex:</b> agrega las dos líneas al final de <code>.codex/config.toml</code> en tu carpeta de usuario.</li>
+          <li><b>Cursor:</b> en <b>Settings ▸ MCP ▸ Add new MCP server</b>, o pega el bloque en <code>.cursor/mcp.json</code>.</li>
+          <li><b>Otra IA:</b> usa la «dirección del servidor MCP (HTTP)».</li>
+        </ul>
+      </li>
+      <li>Reinicia tu IA y pídele: <i>«muéstrame mis cursos y exámenes de Examen Seguro»</i>. Si responde con tu lista, ya está conectada.</li>
+    </ol>
+    <p><b>Qué puede hacer tu IA:</b> lo mismo que tú en el panel: crear, cambiar, copiar y borrar exámenes, usar el banco, generar preguntas, ver resultados, corregir respuestas cortas, dar más tiempo, anular intentos y ver o agregar estudiantes de tus cursos. <b>No puede</b> cambiar contraseñas, crear claves ni administrar docentes.</p>
+    <div class="nota">La clave dura <b>30 días</b> y entra como tú: no la compartas ni la publiques. Si la pierdes o termina el plazo, revócala y crea otra. Puedes tener hasta 5 claves activas. Cada clave permite 150 acciones por hora. Tu IA verá los <b>nombres</b> y notas de tus estudiantes, pero nunca edad, dirección ni teléfono (Examen Seguro no los guarda). Revisa siempre lo que crea la IA antes de activar un examen.</div>
+  </section>
   <section class="tarjeta" id="ayudante">
     <h2>3d. Examen demo y Ayudante</h2>
     <p><b>Demo:</b> en la página de inicio, el botón <b>«Probar la demo»</b> (o el código <code>DEMO</code>) abre un examen de práctica con un ejemplo de cada tipo de pregunta. Lo puede abrir cualquiera, no cuenta como nota y se borra solo. También está en el Banco: «Usar en mi curso» lo copia para que lo edites.</p>

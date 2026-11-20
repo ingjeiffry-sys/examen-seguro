@@ -15,6 +15,11 @@
       { sel: '#btnImportar', txt: '«Pegar preguntas» convierte tu texto en preguntas. Escribe «Tipo: algoritmo», «Tipo: palabras»… y una línea «Imagen: https://…» para poner una imagen.' },
       { txt: 'Dentro de cada pregunta abre «Imagen, video o audio»: sube una foto de tu equipo o pega un enlace de YouTube o Google Drive. Así haces «Observa la imagen y contesta» o «Mira el video y responde».' },
       { demo: true, txt: '¿Quieres ver cómo lo ve el estudiante? Pulsa «Abrir la demo»: tiene un ejemplo de cada tipo.' }] },
+    { ico: 'robot', t: 'Crear preguntas con IA (tema o texto)', pasos: [
+      { ir: 'editor', arg: { paso: 'preguntas' }, sel: '#btnIA', txt: 'Pulsa «Generar con IA». Escribe el tema o pega el texto de tu clase.' },
+      { txt: 'Elige la dificultad (fácil, media, difícil o mixta), cuántas preguntas quieres y marca solo los tipos que quieres que salgan.' },
+      { txt: 'En unos segundos ves las preguntas con su respuesta. Desmarca las que no te gusten, pulsa «Agregar» y revísalas: la IA puede equivocarse.' },
+      { sel: '#edGuardar', txt: 'Cuando estés conforme, pulsa «Guardar».' }] },
     { ico: 'estrella', t: 'Ver la demo de todos los tipos', demo: true },
     { ico: 'banco', t: 'Usar un examen ya hecho (banco)', pasos: [
       { ir: 'banco', sel: '#bArea', txt: 'Filtra por Académico, Técnico o Mis materias, o busca por tema.' },

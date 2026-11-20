@@ -512,13 +512,14 @@
     var q = E.preguntas;
     $('edCuerpo').innerHTML = (E.ex.multiBanco ? '<div class="tarjeta" style="margin-bottom:12px"><b>' + ICO('alerta') + ' Este examen usa preguntas de varios bancos.</b><p class="suave" style="margin:4px 0 0">Si guardas aquí, las preguntas se copian a este examen.</p></div>' : '') +
       '<div class="filtros"><button class="btn claro" data-add="MC">' + ICO('mas') + ' Selección múltiple</button><button class="btn claro" data-add="VF">' + ICO('mas') + ' Verdadero o falso</button>' +
-      '<button class="btn claro" data-add="CORTA">' + ICO('mas') + ' Respuesta corta</button>' + DINAMICAS.map(function (d) { return '<button class="btn claro" data-add="' + d[0] + '">' + ICO(d[2]) + ' ' + d[1] + '</button>'; }).join('') + '<button class="btn primario" id="btnImportar">' + ICO('importar') + ' Pegar preguntas</button>' +
+      '<button class="btn claro" data-add="CORTA">' + ICO('mas') + ' Respuesta corta</button>' + DINAMICAS.map(function (d) { return '<button class="btn claro" data-add="' + d[0] + '">' + ICO(d[2]) + ' ' + d[1] + '</button>'; }).join('') + '<button class="btn primario" id="btnImportar">' + ICO('importar') + ' Pegar preguntas</button><button class="btn primario" id="btnIA">✨ Generar con IA</button>' +
       '<span class="suave pequeno" style="margin-left:auto">' + q.length + ' preguntas · ' + q.reduce(function (a, x) { return a + (Number(x.puntos) || 1); }, 0) + ' puntos</span></div>' +
       (q.length ? q.map(htmlPregunta).join('') : '<div class="tarjeta vacio"><div class="chip-ico">' + ICO('lista') + '</div><h3 style="justify-content:center">Sin preguntas todavía</h3><p>Agrega una a una o usa «Pegar preguntas» para cargar muchas de un golpe.</p></div>');
     var c = $('edCuerpo');
     c.onclick = function (e) {
-      var t = e.target.closest('[data-add],[data-del],[data-sube],[data-baja],[data-cor],[data-masop],[data-quitaop],[data-sinmedia],#btnImportar'); if (!t) return;
+      var t = e.target.closest('[data-add],[data-del],[data-sube],[data-baja],[data-cor],[data-masop],[data-quitaop],[data-sinmedia],#btnImportar,#btnIA'); if (!t) return;
       if (t.id === 'btnImportar') { leerPreguntas(); importar(); return; }
+      if (t.id === 'btnIA') { leerPreguntas(); generarIA(); return; }
       leerPreguntas();
       if (t.dataset.add) { var tp = t.dataset.add; q.push({ tipo: tp, enunciado: '', opciones: tp === 'MC' ? ['', '', '', ''] : tp === 'VF' || tp === 'VFJ' ? ['Verdadero', 'Falso'] : [], correcta: tp === 'VF' || tp === 'VFJ' ? 'Verdadero' : AUTO.indexOf(tp) >= 0 ? 'auto' : '', puntos: 1, explicacion: '', tema: '' }); }
       var i = Number(t.dataset.del || t.dataset.sube || t.dataset.baja || t.dataset.masop || t.dataset.quitaop || (t.dataset.cor || '').split(':')[0]);
@@ -607,6 +608,55 @@
         x.media = mu ? el.value + ':' + mu : /^data:image\//.test(cuUrl) ? 'imagen:' + cuUrl : ''; }
       else x[el.dataset.f] = el.value;
     });
+  }
+  /* Generar preguntas con IA (servidor: Gemini → Groq → OpenRouter). El docente elige tipos, dificultad y cuáles agregar. */
+  var TIPOS_IA_ED = [['MC', 'Selección múltiple'], ['VF', 'Verdadero o falso'], ['VFJ', 'V/F justificada'], ['CORTA', 'Respuesta corta'], ['ORDENAR', 'Ordenar pasos'], ['ALGORITMO', 'Algoritmo'],
+    ['FLUJO', 'Diagrama de flujo'], ['RELACIONAR', 'Relacionar'], ['CLASIFICAR', 'Clasificar'], ['COMPLETAR', 'Completar'], ['PALABRAS', 'Banco de palabras'], ['NUMERICA', 'Numérica']];
+  var IA = { tema: '', texto: '', dificultad: 'MEDIA', cantidad: 10, tipos: ['MC', 'VF', 'CORTA', 'COMPLETAR', 'RELACIONAR', 'ORDENAR'] };
+  try { Object.assign(IA, JSON.parse(localStorage.getItem('es-ia') || '{}'), { texto: '' }); } catch (e) {}
+  function generarIA() {
+    modal('<h2>✨ Generar preguntas con IA</h2><p class="suave pequeno">Escribe el tema o pega el texto de la clase. La IA crea las preguntas, tú eliges cuáles agregar y luego puedes editarlas. No escribas nombres de estudiantes ni datos personales.</p>' +
+      '<label class="campo"><span>Tema</span><input class="entrada" id="iaTema" maxlength="300" placeholder="Ej.: Topologías de red y dispositivos" value="' + esc(IA.tema) + '"></label>' +
+      '<label class="campo"><span>Texto base (opcional): las preguntas salen solo de este texto</span><textarea class="entrada" id="iaTexto" maxlength="15000" style="min-height:110px" placeholder="Pega aquí el contenido de la clase, un resumen o una lectura">' + esc(IA.texto) + '</textarea></label>' +
+      '<div class="fila" style="align-items:end"><label class="campo"><span>Dificultad</span><div class="segmento" id="iaDif">' + [['FACIL', 'Fácil'], ['MEDIA', 'Media'], ['DIFICIL', 'Difícil'], ['MIXTA', 'Mixta']].map(function (x) {
+        return '<button type="button" data-d="' + x[0] + '"' + (IA.dificultad === x[0] ? ' class="on"' : '') + '>' + x[1] + '</button>'; }).join('') + '</div></label>' +
+      '<label class="campo" style="max-width:140px"><span>Cantidad (1-30)</span><input class="entrada" id="iaCant" type="number" min="1" max="30" value="' + IA.cantidad + '"></label></div>' +
+      '<div class="campo"><span>Tipos de pregunta que quieres <button type="button" class="btn fantasma mini" id="iaTodos">Todos</button><button type="button" class="btn fantasma mini" id="iaNinguno">Ninguno</button></span>' +
+      '<div class="chips-n" id="iaTipos">' + TIPOS_IA_ED.map(function (x) { return '<label class="pildora" style="cursor:pointer;gap:6px"><input type="checkbox" value="' + x[0] + '"' + (IA.tipos.indexOf(x[0]) >= 0 ? ' checked' : '') + '>' + x[1] + '</label>'; }).join('') + '</div></div>' +
+      '<div class="error" id="iaError"></div><div id="iaRes"></div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px"><button class="btn claro" data-cerrar>Cancelar</button><button class="btn claro oculto" id="iaAgregar"></button><button class="btn primario" id="iaGen">✨ Generar</button></div>', true);
+    $('iaDif').onclick = function (e) { var b = e.target.closest('[data-d]'); if (!b) return; $('iaDif').querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); }); };
+    var marcar = function (v) { $('iaTipos').querySelectorAll('input').forEach(function (x) { x.checked = v; }); };
+    $('iaTodos').onclick = function () { marcar(true); }; $('iaNinguno').onclick = function () { marcar(false); };
+    var lista = [];
+    $('iaGen').onclick = function () {
+      IA.tema = $('iaTema').value.trim(); IA.texto = $('iaTexto').value.trim(); IA.cantidad = Math.max(1, Math.min(30, Number($('iaCant').value) || 10));
+      IA.dificultad = ($('iaDif').querySelector('.on') || {}).dataset ? $('iaDif').querySelector('.on').dataset.d : 'MEDIA';
+      IA.tipos = [].map.call($('iaTipos').querySelectorAll('input:checked'), function (x) { return x.value; });
+      $('iaError').textContent = '';
+      if (!IA.tipos.length) { $('iaError').textContent = 'Elige al menos un tipo de pregunta.'; return; }
+      if (!IA.tema && IA.texto.length < 40) { $('iaError').textContent = 'Escribe el tema o pega un texto.'; return; }
+      try { localStorage.setItem('es-ia', JSON.stringify({ tema: IA.tema, dificultad: IA.dificultad, cantidad: IA.cantidad, tipos: IA.tipos })); } catch (e) {}
+      var b = this; b.disabled = true; b.textContent = 'Generando…'; $('iaAgregar').classList.add('oculto');
+      $('iaRes').innerHTML = '<div class="cargando" style="padding:18px"><div class="girar"></div><p>La IA está creando ' + IA.cantidad + ' preguntas. Tarda de 5 a 60 segundos.</p></div>';
+      A({ action: 'generarIA', tema: IA.tema, texto: IA.texto, tipos: IA.tipos, cantidad: IA.cantidad, dificultad: IA.dificultad, materia: E.ex.materia, curso: E.ex.curso }).then(function (r) {
+        lista = r.preguntas;
+        $('iaRes').innerHTML = '<p class="pequeno" style="margin:12px 0 6px"><b>' + lista.length + ' preguntas</b> · hechas con ' + esc(r.motor) + (r.descartadas ? ' · ' + r.descartadas + ' descartadas por venir mal formadas' : '') + '. Desmarca las que no quieras. <b>Revísalas antes de usarlas</b>: la IA puede equivocarse.</p>' +
+          lista.map(function (q, i) {
+            return '<label class="tarjeta" style="display:flex;gap:10px;padding:10px 12px;margin:0 0 6px;cursor:pointer"><input type="checkbox" data-ia="' + i + '" checked style="margin-top:4px">' +
+              '<span style="min-width:0"><span class="pildora">' + esc(TIPOS_ED[q.tipo] || q.tipo) + '</span>' + (q.dificultad ? ' <span class="pildora ' + ({ facil: 'verde', media: 'amarillo', dificil: 'rojo' }[String(q.dificultad).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')] || '') + '">' + esc(q.dificultad) + '</span>' : '') +
+              '<div style="margin:4px 0;white-space:pre-line"><b>' + esc(q.enunciado) + '</b></div><div class="pequeno suave" style="white-space:pre-line">' + (q.opciones.length && ORDEN_ED.indexOf(q.tipo) < 0 && ['RELACIONAR', 'CLASIFICAR'].indexOf(q.tipo) < 0 ? 'Opciones: ' + esc(q.opciones.join(' · ')) + '\n' : '') + 'Respuesta: ' + esc(claveTexto(q)) + '</div></span></label>';
+          }).join('');
+        var cuenta = function () { var k = $('iaRes').querySelectorAll('[data-ia]:checked').length; $('iaAgregar').textContent = 'Agregar ' + k + ' al examen'; $('iaAgregar').disabled = !k; };
+        $('iaRes').onchange = cuenta; cuenta(); $('iaAgregar').classList.remove('oculto'); $('iaAgregar').className = 'btn primario'; b.className = 'btn claro';
+      }).catch(function (e) { $('iaRes').innerHTML = ''; $('iaError').textContent = e.message; })
+        .then(function () { b.disabled = false; b.textContent = lista.length ? '↻ Generar otras' : '✨ Generar'; });
+    };
+    $('iaAgregar').onclick = function () {
+      var sel = [].map.call($('iaRes').querySelectorAll('[data-ia]:checked'), function (x) { return lista[Number(x.dataset.ia)]; });
+      sel.forEach(function (q) { E.preguntas.push({ tipo: q.tipo, enunciado: q.enunciado, opciones: q.opciones, correcta: q.correcta, puntos: q.puntos, explicacion: q.explicacion, tema: q.tema, media: '' }); });
+      cerrarModal(); AVISO(sel.length + ' preguntas agregadas. Revísalas y pulsa Guardar.'); pasoPreguntas();
+    };
   }
   function importar() {
     modal('<h2>' + ICO('importar') + ' Pegar preguntas</h2><p class="suave pequeno">Separa cada pregunta con una línea en blanco. Marca la correcta con un asterisco (*). Para V/F escribe «Respuesta: V» o «F». Sin opciones y con «Respuesta:» es respuesta corta. <b>Tipos dinámicos:</b> agrega una línea «Tipo: ordenar / algoritmo / diagrama / relacionar / clasificar / numérica», la pregunta y debajo los elementos en orden; para completar, pon las respuestas entre [[ ]]. <b>Banco de palabras:</b> «Tipo: palabras», la oración con [[ ]] y «Relleno: palabra, palabra». <b>V/F justificada:</b> «Tipo: justifica» y «Respuesta: V» o «F». <b>Imagen, video o audio:</b> una línea «Imagen: https://…» (o «Video:», «Audio:»).</p>' +
@@ -1068,6 +1118,46 @@
       if ($('cNueva').value !== $('cNueva2').value) { $('cError').textContent = 'Las contraseñas nuevas no son iguales.'; return; }
       A({ action: 'cambiarClave', actual: $('cActual').value, clave: $('cNueva').value }).then(function () { AVISO('Contraseña cambiada'); e.target.reset(); }).catch(function (er) { $('cError').textContent = er.message; });
     };
+    conectarIA();
+  }
+
+  /* ---------- Conectar mi IA (servidor MCP con clave de 30 días) ---------- */
+  function conectarIA() {
+    var caja = document.createElement('div'); caja.className = 'tarjeta'; caja.id = 'cIA'; caja.style.marginTop = '14px';
+    caja.innerHTML = '<h3>' + ICO('llave') + ' Conectar mi IA</h3><p class="suave pequeno" style="margin:4px 0 10px">Crea una clave para que tu IA (Claude Code, Gemini CLI, Codex, Cursor…) haga exámenes por ti. ' +
+      'Dura 30 días y tiene los mismos permisos que tú. Guía paso a paso: <a href="guia.html#mi-ia" target="_blank">Conectar tu IA</a>.</p>' +
+      '<div class="filtros"><input class="entrada" id="iaNombre" maxlength="40" placeholder="Nombre (ej. Claude en mi laptop)"><button class="btn primario" id="iaCrear">' + ICO('mas') + ' Crear clave</button></div>' +
+      '<div id="iaNueva"></div><div id="iaLista" class="suave pequeno">Cargando…</div>';
+    $('pagina').appendChild(caja);
+    function lista() {
+      A({ action: 'clavesIA' }).then(function (r) {
+        $('iaLista').innerHTML = r.claves.length ? '<table class="tabla"><tr><th>Nombre</th><th>Vence</th><th>Último uso</th><th>Usos</th><th></th></tr>' + r.claves.map(function (c) {
+          return '<tr><td>' + esc(c.nombre) + '</td><td>' + esc(String(c.vence).slice(0, 10)) + '</td><td>' + esc(String(c.ultimoUso || '—').replace('T', ' ').slice(0, 16)) + '</td><td>' + c.usos + '</td><td>' +
+            (c.activa ? '<button class="btn fantasma mini" data-rev="' + esc(c.id) + '">Revocar</button>' : '<span class="pildora">Inactiva</span>') + '</td></tr>';
+        }).join('') + '</table>' : 'Todavía no tienes claves.';
+      }).catch(function (er) { $('iaLista').textContent = er.message; });
+    }
+    $('iaLista').onclick = function (e) {
+      var b = e.target.closest('[data-rev]'); if (!b || !confirm('¿Revocar esta clave? La IA que la usa deja de conectarse.')) return;
+      A({ action: 'revocarClaveIA', id: b.dataset.rev }).then(function () { AVISO('Clave revocada'); lista(); }).catch(function (er) { AVISO(er.message, 'error'); });
+    };
+    $('iaCrear').onclick = function () {
+      A({ action: 'crearClaveIA', nombre: $('iaNombre').value }).then(function (r) {
+        var url = window.EXAMEN_API + '?k=' + r.clave, j = JSON.stringify(url);
+        var cmds = [
+          ['Claude Code (terminal)', 'claude mcp add --transport http --scope user examen-seguro ' + j],
+          ['Gemini CLI (archivo .gemini/settings.json)', '{ "mcpServers": { "examen-seguro": { "httpUrl": ' + j + ' } } }'],
+          ['Codex (archivo .codex/config.toml)', '[mcp_servers.examen-seguro]\nurl = ' + j],
+          ['Cursor (archivo .cursor/mcp.json)', '{ "mcpServers": { "examen-seguro": { "url": ' + j + ' } } }'],
+          ['Otra IA: dirección del servidor MCP (HTTP)', url]
+        ];
+        $('iaNueva').innerHTML = '<div class="pildora ambar" style="display:block;white-space:normal;margin:10px 0;padding:10px"><b>Copia esto ahora:</b> la clave no se vuelve a mostrar. Vence el ' + esc(String(r.vence).slice(0, 10)) + '. No la compartas: quien la tenga entra como tú.</div>' +
+          cmds.map(function (c, i) { return '<label class="campo"><span>' + esc(c[0]) + '</span><div class="filtros"><textarea class="entrada" rows="' + (c[1].indexOf('\n') >= 0 ? 2 : 1) + '" readonly style="font-family:monospace;font-size:12px">' + esc(c[1]) + '</textarea><button class="btn claro mini" data-cp="' + i + '">' + ICO('copiar') + '</button></div></label>'; }).join('');
+        $('iaNueva').onclick = function (e) { var b = e.target.closest('[data-cp]'); if (b) copiar(cmds[b.dataset.cp][1]); };
+        $('iaNombre').value = ''; lista();
+      }).catch(function (er) { AVISO(er.message, 'error'); });
+    };
+    lista();
   }
 
   /* Arranque: si hay sesión guardada, entra directo */
