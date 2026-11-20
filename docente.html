@@ -137,6 +137,7 @@
       <form id="fEntrar">
         <label class="campo"><span>Usuario</span><input class="entrada" id="aUsuario" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="nombre.apellido"></label>
         <label class="campo"><span>Contraseña</span><input class="entrada" id="aClave" type="password" autocomplete="current-password"></label>
+        <div class="campo"><span>Entrar como</span><div class="segmento" id="aModo"><button type="button" class="on" data-modo="DOCENTE">Docente</button><button type="button" data-modo="ADMIN">Administración</button></div></div>
         <div class="error" id="aError"></div>
         <button class="btn primario ancho" type="submit">Entrar</button>
       </form>
@@ -157,7 +158,8 @@
 <!-- Aplicación -->
 <div id="vApp" class="app oculto">
   <aside class="lateral">
-    <div class="marca-l"><div class="logo" id="logoL"></div><div><b>Examen Seguro <span class="pildora" data-version style="font-size:11px;padding:2px 8px;vertical-align:middle"></span></b><span>Politécnico C. James Davis</span></div></div>
+    <div class="marca-l"><div class="logo" id="logoL"></div><div><b>Examen Seguro <span class="pildora" data-version style="font-size:11px;padding:2px 8px;vertical-align:middle"></span></b><span id="yoCentro"></span></div></div>
+    <select class="entrada oculto" id="selCentro" title="Cambiar de centro o de modo" style="margin:0 0 10px;font-size:13px;padding:8px 10px"></select>
     <div id="menu" style="display:contents"></div>
     <div class="yo"><div class="avatar" id="yoIni"></div><div style="min-width:0;flex:1"><b id="yoNombre"></b><span id="yoRol"></span></div></div>
     <div class="solo-escritorio" style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px 0"><div class="tema"></div><button class="btn fantasma mini" id="btnSalirApp"></button></div>
@@ -197,8 +199,11 @@
   $('fEntrar').onsubmit = function (e) {
     e.preventDefault(); $('aError').textContent = '';
     var b = e.submitter || this.querySelector('button'); b.disabled = true;
-    API({ action: 'login', usuario: $('aUsuario').value, clave: $('aClave').value }).then(entrar).catch(function (er) { $('aError').textContent = er.message; }).then(function () { b.disabled = false; });
+    API({ action: 'login', usuario: $('aUsuario').value, clave: $('aClave').value, modo: modoEntrada() }).then(entrar).catch(function (er) { $('aError').textContent = er.message; }).then(function () { b.disabled = false; });
   };
+  function modoEntrada() { var b = document.querySelector('#aModo .on'); return b ? b.dataset.modo : 'DOCENTE'; }
+  $('aModo').onclick = function (e) { var b = e.target.closest('[data-modo]'); if (!b) return; document.querySelectorAll('#aModo [data-modo]').forEach(function (x) { x.classList.toggle('on', x === b); }); try { localStorage.setItem('es-modo', b.dataset.modo); } catch (er) {} };
+  try { if (localStorage.getItem('es-modo') === 'ADMIN') $('aModo').querySelector('[data-modo="ADMIN"]').click(); } catch (er) {}
   $('fActivar').onsubmit = function (e) {
     e.preventDefault(); $('vError').textContent = '';
     if ($('vClave').value !== $('vClave2').value) { $('vError').textContent = 'Las contraseñas no son iguales.'; return; }
@@ -216,7 +221,10 @@
     $('vAcceso').classList.add('oculto'); $('vApp').classList.remove('oculto'); cargando('Abriendo tu panel…');
     return A({ action: 'panel' }).then(function (p) {
       S.panel = p; S.yo = p.yo;
-      $('yoNombre').textContent = p.yo.nombre; $('yoRol').textContent = p.yo.rol === 'ADMIN' ? 'Coordinación' : 'Docente';
+      $('yoNombre').textContent = p.yo.nombre; $('yoRol').textContent = p.yo.rol === 'ADMIN' ? 'Administración' : 'Docente'; $('yoCentro').textContent = p.yo.centroNombre || '';
+      var opc = []; (p.yo.centros || []).forEach(function (c) { opc.push([c.id + '|DOCENTE', c.nombre + ' · Docente']); if (c.rol === 'ADMIN') opc.push([c.id + '|ADMIN', c.nombre + ' · Administración']); });
+      $('selCentro').innerHTML = opc.map(function (o) { return '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>'; }).join(''); $('selCentro').value = p.yo.centro + '|' + p.yo.rol;
+      $('selCentro').classList.toggle('oculto', opc.length < 2);
       $('yoIni').textContent = p.yo.nombre.split(' ').map(function (x) { return x[0]; }).slice(0, 2).join('');
       var items = [['inicio', 'inicio', 'Inicio'], ['examenes', 'examen', 'Exámenes'], ['banco', 'banco', 'Banco'], ['reportes', 'grafica', 'Reportes'], ['estudiantes', 'usuarios', 'Estudiantes']];
       if (p.yo.rol === 'ADMIN') items.push(['docentes', 'docentes', 'Docentes']);
@@ -225,6 +233,12 @@
       ir(S.vista === 'editor' || S.vista === 'resultados' ? 'inicio' : S.vista);
     }).catch(function (e) { if (e.sesion !== 'fin') $('pagina').innerHTML = '<div class="tarjeta"><b>No se pudo abrir el panel.</b><p class="suave">' + esc(e.message) + '</p></div>'; });
   }
+  /** Cambia de centro o de modo sin salir. */
+  function cambiarCentro(centro, modo) {
+    cargando('Cambiando…');
+    return A({ action: 'cambiarCentro', centro: centro, modo: modo }).then(function () { S.vista = 'inicio'; return abrirApp(); }).catch(function (er) { AVISO(er.message, 'error'); abrirApp(); });
+  }
+  $('selCentro').onchange = function () { var v = this.value.split('|'); cambiarCentro(v[0], v[1]); };
   $('menu').addEventListener('click', function (e) { var b = e.target.closest('[data-ir]'); if (b) ir(b.dataset.ir); });
   function ir(v, arg) {
     parar(); S.vista = v; window.scrollTo(0, 0); $('pagina').onclick = null;
@@ -1070,8 +1084,11 @@
   function docentes() {
     cargando('Cargando docentes…');
     Promise.all([A({ action: 'docentes' }), A({ action: 'asignaciones' })]).then(function (rs) {
+      if (S.vista !== 'docentes') return;
       var ds = rs[0].docentes, asig = rs[1].asignaciones;
       $('pagina').innerHTML = cabeza('Docentes', ds.length + ' docentes · ' + ds.filter(function (d) { return d.activado; }).length + ' ya activaron su cuenta', '<button class="btn primario" id="dNuevo">' + ICO('mas') + ' Agregar docente</button>') +
+        '<div class="tarjeta" style="margin-bottom:14px"><b>' + ICO('escudo') + ' ' + esc(rs[0].centro.nombre) + '</b><p class="suave pequeno" style="margin:6px 0 8px">Código de invitación: los docentes que ya tienen cuenta (por ejemplo, de otro centro) lo escriben en <b>Mi cuenta ▸ Mis centros ▸ Unirme</b>.</p>' +
+          '<div class="filtros"><span class="pildora morado" style="font-size:15px;letter-spacing:1px">' + esc(rs[0].centro.invitacion) + '</span><button class="btn fantasma mini" id="ceCopiar">' + ICO('copiar') + ' Copiar</button><button class="btn fantasma mini" id="ceNuevoCod">' + ICO('recargar') + ' Código nuevo</button><button class="btn fantasma mini" id="ceRenombrar">Cambiar nombre</button></div></div>' +
         '<div class="tarjeta" style="margin-bottom:14px"><b>' + ICO('llave') + ' Cómo entra cada docente</b><p class="suave pequeno" style="margin:6px 0 0">Entrégale su <b>usuario</b> y su <b>código de activación</b>. En «Activar mi cuenta» crea su contraseña; el código deja de servir. Si olvida la contraseña, usa «Reiniciar acceso» para darle un código nuevo.</p></div>' +
         '<div class="tarjeta desliza"><table class="tabla"><thead><tr><th>Docente</th><th>Usuario</th><th>Acceso</th><th>Materias</th><th>Último acceso</th><th></th></tr></thead><tbody>' + ds.map(function (d) {
           return '<tr style="' + (d.activo ? '' : 'opacity:.5') + '"><td><b>' + esc(d.nombre) + '</b> ' + (d.rol === 'ADMIN' ? '<span class="pildora morado">Coordinación</span>' : '') + '</td><td><code>' + esc(d.usuario) + '</code></td>' +
@@ -1080,6 +1097,9 @@
             '<td style="white-space:nowrap"><button class="btn fantasma mini" data-reini="' + d.id + '">' + ICO('recargar') + ' Reiniciar acceso</button><button class="btn fantasma icono" data-rol="' + d.id + '" data-r="' + d.rol + '" title="Cambiar rol">' + ICO('docentes') + '</button>' +
             '<button class="btn fantasma icono" data-act="' + d.id + '" data-a="' + (d.activo ? 1 : 0) + '" title="' + (d.activo ? 'Desactivar' : 'Activar') + '">' + ICO(d.activo ? 'x' : 'check') + '</button></td></tr>';
         }).join('') + '</tbody></table></div>';
+      $('ceCopiar').onclick = function () { copiar('Código de invitación de ' + rs[0].centro.nombre + ': ' + rs[0].centro.invitacion); };
+      $('ceNuevoCod').onclick = function () { confirmar('¿Crear un código nuevo?', 'El código anterior deja de servir. Quienes ya se unieron siguen en el centro.', 'Crear', function () { A({ action: 'guardarCentro', nuevaInvitacion: true }).then(function () { AVISO('Código nuevo creado'); docentes(); }); }); };
+      $('ceRenombrar').onclick = function () { var n = prompt('Nombre del centro:', rs[0].centro.nombre); if (n) A({ action: 'guardarCentro', nombre: n }).then(function () { AVISO('Nombre cambiado'); abrirApp().then(function () { ir('docentes'); }); }).catch(function (er) { AVISO(er.message, 'error'); }); };
       var guardar = function (doc, msg) { A({ action: 'guardarDocente', docente: doc }).then(function () { AVISO(msg); docentes(); }).catch(function (er) { AVISO(er.message, 'error'); }); };
       $('pagina').onclick = function (e) {
         var b = e.target.closest('[data-cp],[data-reini],[data-rol],[data-act],[data-asig],#dNuevo'); if (!b) return;
@@ -1118,22 +1138,43 @@
       if ($('cNueva').value !== $('cNueva2').value) { $('cError').textContent = 'Las contraseñas nuevas no son iguales.'; return; }
       A({ action: 'cambiarClave', actual: $('cActual').value, clave: $('cNueva').value }).then(function () { AVISO('Contraseña cambiada'); e.target.reset(); }).catch(function (er) { $('cError').textContent = er.message; });
     };
+    misCentros();
     conectarIA();
+  }
+
+  /* ---------- Mis centros (escuela, liceo, universidad…) ---------- */
+  function misCentros() {
+    var y = S.panel.yo, caja = document.createElement('div'); caja.className = 'tarjeta'; caja.style.marginTop = '14px';
+    caja.innerHTML = '<h3>' + ICO('escudo') + ' Mis centros</h3><p class="suave pequeno" style="margin:4px 0 10px">Si das clases en otro lugar (universidad, instituto, academia), créalo o únete con el código que te dé su administración. Cada centro tiene sus propios cursos, estudiantes y exámenes.</p>' +
+      '<table class="tabla"><tr><th>Centro</th><th>Tu rol</th><th></th></tr>' + (y.centros || []).map(function (c) {
+        return '<tr><td><b>' + esc(c.nombre) + '</b>' + (c.id === y.centro ? ' <span class="pildora verde">Ahora</span>' : '') + '</td><td>' + (c.rol === 'ADMIN' ? 'Administración' : 'Docente') + '</td><td style="white-space:nowrap">' +
+          '<button class="btn fantasma mini" data-ce="' + esc(c.id) + '" data-mo="DOCENTE">Entrar como docente</button>' + (c.rol === 'ADMIN' ? '<button class="btn fantasma mini" data-ce="' + esc(c.id) + '" data-mo="ADMIN">Entrar como administración</button>' : '') + '</td></tr>';
+      }).join('') + '</table>' +
+      '<div class="dos" style="margin-top:12px"><div><b class="pequeno">Crear un centro</b><div class="filtros" style="margin-top:6px"><input class="entrada" id="ceNombre" maxlength="80" placeholder="Nombre (ej. Universidad X)"><select class="entrada" id="ceTipo"><option>Universidad</option><option>Instituto</option><option>Liceo</option><option>Escuela</option><option>Academia</option><option>Otro</option></select><button class="btn primario" id="ceCrear">' + ICO('mas') + ' Crear</button></div></div>' +
+      '<div><b class="pequeno">Unirme con un código</b><div class="filtros" style="margin-top:6px"><input class="entrada" id="ceCodigo" placeholder="XXXX-XXXX" autocapitalize="characters"><button class="btn claro" id="ceUnir">Unirme</button></div></div></div>';
+    $('pagina').appendChild(caja);
+    caja.onclick = function (e) { var b = e.target.closest('[data-ce]'); if (b) cambiarCentro(b.dataset.ce, b.dataset.mo); };
+    $('ceCrear').onclick = function () {
+      A({ action: 'crearCentro', nombre: $('ceNombre').value, tipo: $('ceTipo').value }).then(function (r) { AVISO('Centro creado: eres su administración'); cambiarCentro(r.id, 'ADMIN'); }).catch(function (er) { AVISO(er.message, 'error'); });
+    };
+    $('ceUnir').onclick = function () {
+      A({ action: 'unirseCentro', codigo: $('ceCodigo').value }).then(function (r) { AVISO('Te uniste a ' + r.nombre); cambiarCentro(r.id, 'DOCENTE'); }).catch(function (er) { AVISO(er.message, 'error'); });
+    };
   }
 
   /* ---------- Conectar mi IA (servidor MCP con clave de 30 días) ---------- */
   function conectarIA() {
     var caja = document.createElement('div'); caja.className = 'tarjeta'; caja.id = 'cIA'; caja.style.marginTop = '14px';
     caja.innerHTML = '<h3>' + ICO('llave') + ' Conectar mi IA</h3><p class="suave pequeno" style="margin:4px 0 10px">Crea una clave para que tu IA (Claude Code, Gemini CLI, Codex, Cursor…) haga exámenes por ti. ' +
-      'Dura 30 días y tiene los mismos permisos que tú. Guía paso a paso: <a href="guia.html#mi-ia" target="_blank">Conectar tu IA</a>.</p>' +
-      '<div class="filtros"><input class="entrada" id="iaNombre" maxlength="40" placeholder="Nombre (ej. Claude en mi laptop)"><button class="btn primario" id="iaCrear">' + ICO('mas') + ' Crear clave</button><button class="btn claro" id="iaVideo">' + ICO('video') + ' Ver video: cómo usar esta clave</button></div>' +
+      'Tú eliges si dura 30 días o es permanente (la puedes revocar cuando quieras). Tiene tus mismos permisos en este centro. Guía paso a paso: <a href="guia.html#mi-ia" target="_blank">Conectar tu IA</a>.</p>' +
+      '<div class="filtros"><input class="entrada" id="iaNombre" maxlength="40" placeholder="Nombre (ej. Claude en mi laptop)"><select class="entrada" id="iaDur" title="Duración" style="max-width:150px"><option value="30">Dura 30 días</option><option value="P">Permanente</option></select><button class="btn primario" id="iaCrear">' + ICO('mas') + ' Crear clave</button><button class="btn claro" id="iaVideo">' + ICO('video') + ' Ver video: cómo usar esta clave</button></div>' +
       '<div id="iaVid" class="oculto" style="margin:10px 0"><video controls preload="none" playsinline style="width:100%;border-radius:14px;background:#0b0b14;aspect-ratio:16/9" src="material/conectar-ia.mp4" poster="material/conectar-ia.jpg"></video></div>' +
       '<div id="iaNueva"></div><div id="iaLista" class="suave pequeno">Cargando…</div>';
     $('pagina').appendChild(caja);
     function lista() {
       A({ action: 'clavesIA' }).then(function (r) {
         $('iaLista').innerHTML = r.claves.length ? '<table class="tabla"><tr><th>Nombre</th><th>Vence</th><th>Último uso</th><th>Usos</th><th></th></tr>' + r.claves.map(function (c) {
-          return '<tr><td>' + esc(c.nombre) + '</td><td>' + esc(String(c.vence).slice(0, 10)) + '</td><td>' + esc(String(c.ultimoUso || '—').replace('T', ' ').slice(0, 16)) + '</td><td>' + c.usos + '</td><td>' +
+          return '<tr><td>' + esc(c.nombre) + '</td><td>' + (c.vence ? esc(String(c.vence).slice(0, 10)) : 'Permanente') + '</td><td>' + esc(String(c.ultimoUso || '—').replace('T', ' ').slice(0, 16)) + '</td><td>' + c.usos + '</td><td>' +
             (c.activa ? '<button class="btn fantasma mini" data-rev="' + esc(c.id) + '">Revocar</button>' : '<span class="pildora">Inactiva</span>') + '</td></tr>';
         }).join('') + '</table>' : 'Todavía no tienes claves.';
       }).catch(function (er) { $('iaLista').textContent = er.message; });
@@ -1144,7 +1185,7 @@
     };
     $('iaVideo').onclick = function () { var v = $('iaVid'); v.classList.toggle('oculto'); if (!v.classList.contains('oculto')) v.querySelector('video').play().catch(function () {}); };
     $('iaCrear').onclick = function () {
-      A({ action: 'crearClaveIA', nombre: $('iaNombre').value }).then(function (r) {
+      A({ action: 'crearClaveIA', nombre: $('iaNombre').value, permanente: $('iaDur').value === 'P' }).then(function (r) {
         var url = window.EXAMEN_API + '?k=' + r.clave, j = JSON.stringify(url);
         var cmds = [
           ['Claude Code (terminal)', 'claude mcp add --transport http --scope user examen-seguro ' + j],
@@ -1153,7 +1194,7 @@
           ['Cursor (archivo .cursor/mcp.json)', '{ "mcpServers": { "examen-seguro": { "url": ' + j + ' } } }'],
           ['Otra IA: dirección del servidor MCP (HTTP)', url]
         ];
-        $('iaNueva').innerHTML = '<div class="pildora ambar" style="display:block;white-space:normal;margin:10px 0;padding:10px"><b>Copia esto ahora:</b> la clave no se vuelve a mostrar. Vence el ' + esc(String(r.vence).slice(0, 10)) + '. No la compartas: quien la tenga entra como tú.</div>' +
+        $('iaNueva').innerHTML = '<div class="pildora ambar" style="display:block;white-space:normal;margin:10px 0;padding:10px"><b>Copia esto ahora:</b> la clave no se vuelve a mostrar. ' + (r.vence ? 'Vence el ' + esc(String(r.vence).slice(0, 10)) + '.' : 'Es permanente: revócala si ya no la usas.') + ' No la compartas: quien la tenga entra como tú.</div>' +
           '<div class="pildora rojo" style="display:block;white-space:normal;margin:0 0 10px;padding:10px"><b>⚠ No la pegues en el chat de tu IA.</b> Claude Code: pulsa la tecla Windows, escribe <b>PowerShell</b>, ábrelo, haz clic derecho para pegar y pulsa Enter. Luego abre Claude Code y escribe <b>/mcp</b>: debe salir examen-seguro conectado. Después pídele: «créame un examen en borrador de…».</div>' +
           cmds.map(function (c, i) { return '<label class="campo"><span>' + esc(c[0]) + '</span><div class="filtros"><textarea class="entrada" rows="' + (c[1].indexOf('\n') >= 0 ? 2 : 1) + '" readonly style="font-family:monospace;font-size:12px">' + esc(c[1]) + '</textarea><button class="btn claro mini" data-cp="' + i + '">' + ICO('copiar') + '</button></div></label>'; }).join('');
         $('iaNueva').onclick = function (e) { var b = e.target.closest('[data-cp]'); if (b) copiar(cmds[b.dataset.cp][1]); };
