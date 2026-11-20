@@ -91,7 +91,7 @@
 })();
 
 /* Versión visible de la plataforma: llena los elementos [data-version]. */
-window.ES_VERSION = '2.4';
+window.ES_VERSION = '2.7';
 document.addEventListener('DOMContentLoaded', function () { document.querySelectorAll('[data-version]').forEach(function (e) { e.textContent = 'v' + window.ES_VERSION; }); });
 
 /* Imagen, video o audio de una pregunta («imagen|video|audio:» + enlace). Acepta enlaces de YouTube y Google Drive. */
