@@ -94,6 +94,17 @@
 window.ES_VERSION = '2.7';
 document.addEventListener('DOMContentLoaded', function () { document.querySelectorAll('[data-version]').forEach(function (e) { e.textContent = 'v' + window.ES_VERSION; }); });
 
+/* Marca: nombre y logo de config.js (MARCA, LOGO). Una instalación de venta cambia solo config.js. */
+window.MARCA = window.MARCA || 'Examen Seguro';
+window.LOGO_HTML = function () { return window.LOGO ? '<img src="' + esc(window.LOGO) + '" alt="" style="width:100%;height:100%;object-fit:contain;border-radius:inherit">' : ICO('escudo'); };
+document.addEventListener('DOMContentLoaded', function () {
+  document.title = document.title.replace(/Examen Seguro/g, window.MARCA);
+  document.querySelectorAll('[data-marca]').forEach(function (e) { e.textContent = window.MARCA; });
+  document.querySelectorAll('[data-logo]').forEach(function (e) { e.innerHTML = LOGO_HTML(); });
+  if (window.MARCA !== 'Examen Seguro') document.querySelectorAll('[data-marca-texto]').forEach(function (r) {
+    var w = document.createTreeWalker(r, NodeFilter.SHOW_TEXT), n; while ((n = w.nextNode())) n.nodeValue = n.nodeValue.replace(/Examen Seguro/g, window.MARCA); });
+});
+
 /* Imagen, video o audio de una pregunta («imagen|video|audio:» + enlace). Acepta enlaces de YouTube y Google Drive. */
 window.TIPO_MEDIA = function (url) { return /youtu\.?be|\.(mp4|webm|mov)(\?|$)/i.test(url) ? 'video' : /\.(mp3|wav|ogg|m4a)(\?|$)/i.test(url) ? 'audio' : 'imagen'; };
 window.MEDIA = function (m) {

@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="es.css?v=4">
-<script src="config.js?v=2"></script>
-<script src="es.js?v=6"></script>
+<script src="config.js?v=3"></script>
+<script src="es.js?v=7"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="ayudante.js?v=1" defer></script>
 <style>
@@ -123,6 +123,38 @@
   .media-ed { margin: 10px 0 4px; padding: 8px 12px; border-radius: 14px; background: var(--sup2); }
   .media-ed summary { cursor: pointer; font-size: 14px; font-weight: 600; display: flex; gap: 6px; align-items: center; }
   .media-ed summary .ico { width: 16px; height: 16px; }
+  /* Rejilla en vivo */
+  .rej { border-collapse: separate; border-spacing: 4px; }
+  .rej th { font-size: 12px; color: var(--tenue); font-weight: 700; text-align: center; min-width: 36px; padding: 2px; }
+  .rej th.fijo { position: sticky; left: 0; z-index: 2; background: var(--sup-solida); color: var(--texto); text-align: left; min-width: 140px; max-width: 180px; padding: 6px 10px; border-radius: 10px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; box-shadow: 4px 0 8px -6px rgb(0 0 0 / .25); }
+  .rej th.fijo small { display: block; font-size: 11.5px; font-weight: 600; color: var(--tenue); }
+  .rej td { padding: 0; }
+  .rej td button { display: block; width: 36px; height: 36px; border-radius: 9px; border: 0; cursor: pointer; }
+  .rej .c1, .leyenda-rej .c1 { background: var(--verde); } .rej .c0, .leyenda-rej .c0 { background: var(--rojo); } .rej .c5, .leyenda-rej .c5 { background: var(--amarillo); }
+  .rej .cn, .leyenda-rej .cn { background: var(--sup2); box-shadow: inset 0 0 0 1px var(--linea); }
+  .leyenda-rej i { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin: 0 4px 0 8px; vertical-align: -2px; }
+  /* Celular: avisos y botón Guardar por encima de la barra de abajo */
+  @media (max-width: 900px) { .guardar-fijo { bottom: calc(96px + env(safe-area-inset-bottom)); } .aviso { bottom: calc(104px + env(safe-area-inset-bottom)); } }
+  @media (max-width: 600px) {
+    .cabeza h1 { font-size: 22px; } .cabeza .tit { min-width: 0; flex-basis: 100%; }
+    .tarjeta { padding: 16px 14px; }
+    .kpis { grid-template-columns: 1fr 1fr; gap: 10px; } .kpi { padding: 12px; gap: 8px; } .kpi b { font-size: 20px; }
+    .rejilla, .presets { grid-template-columns: 1fr; }
+    .filtros .entrada, .filtros select.entrada { min-width: 0; flex: 1 1 140px; } .buscar { min-width: 0; flex-basis: 100%; }
+    .btn.mini, .btn.fantasma, .segmento button, .paso { min-height: 40px; }
+    .segmento { display: flex; max-width: 100%; overflow-x: auto; } .segmento button { flex: none; }
+    .pasos { flex-wrap: nowrap; overflow-x: auto; } .paso { flex: none; padding: 8px 12px; }
+    .modal { padding: 0; place-items: end stretch; }
+    .modal > .tarjeta, .modal.ancho > .tarjeta { width: 100%; max-height: 92vh; border-radius: 22px 22px 0 0; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+    .dist div { grid-template-columns: 1fr 70px 30px; }
+    .regla-ed { padding: 12px; gap: 10px; }
+    .rej td button { width: 40px; height: 40px; } .rej th { min-width: 40px; } .rej th.fijo { min-width: 112px; max-width: 132px; }
+    .lista-est, .lista-est tbody { display: block; } .lista-est thead { display: none; }
+    .lista-est tr { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 4px; border-bottom: 1px solid var(--linea); }
+    .lista-est td { border: 0; padding: 8px 4px; } .lista-est td:first-child { display: none; }
+    .guardar-fijo { padding: 10px; }
+  }
 </style>
 </head>
 <body>
@@ -158,7 +190,7 @@
 <!-- Aplicación -->
 <div id="vApp" class="app oculto">
   <aside class="lateral">
-    <div class="marca-l"><div class="logo" id="logoL"></div><div><b>Examen Seguro <span class="pildora" data-version style="font-size:11px;padding:2px 8px;vertical-align:middle"></span></b><span id="yoCentro"></span></div></div>
+    <div class="marca-l"><div class="logo" id="logoL"></div><div><b><span data-marca>Examen Seguro</span> <span class="pildora" data-version style="font-size:11px;padding:2px 8px;vertical-align:middle"></span></b><span id="yoCentro"></span></div></div>
     <select class="entrada oculto" id="selCentro" title="Cambiar de centro o de modo" style="margin:0 0 10px;font-size:13px;padding:8px 10px"></select>
     <div id="menu" style="display:contents"></div>
     <div class="yo"><div class="avatar" id="yoIni"></div><div style="min-width:0;flex:1"><b id="yoNombre"></b><span id="yoRol"></span></div></div>
@@ -175,7 +207,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var S = { token: '', yo: null, panel: null, vista: 'inicio', vivo: null };
   var WEB = location.href.replace(/docente\.html.*$/, '');
-  $('logoA').innerHTML = ICO('escudo'); $('logoL').innerHTML = ICO('escudo'); $('btnSalirApp').innerHTML = ICO('salir') + ' Salir';
+  $('logoA').innerHTML = LOGO_HTML(); $('logoL').innerHTML = LOGO_HTML(); $('btnSalirApp').innerHTML = ICO('salir') + ' Salir';
   try { S.token = sessionStorage.getItem('es-token') || ''; } catch (e) {}
 
   /* ---------- Llamadas con sesión ---------- */
@@ -228,6 +260,7 @@
       $('yoIni').textContent = p.yo.nombre.split(' ').map(function (x) { return x[0]; }).slice(0, 2).join('');
       var items = [['inicio', 'inicio', 'Inicio'], ['examenes', 'examen', 'Exámenes'], ['banco', 'banco', 'Banco'], ['reportes', 'grafica', 'Reportes'], ['estudiantes', 'usuarios', 'Estudiantes']];
       if (p.yo.rol === 'ADMIN') items.push(['docentes', 'docentes', 'Docentes']);
+      if (p.yo.dueno) items.push(['membresias', 'premio', 'Membresías']);
       items.push(['ayuda', 'ayuda', 'Ayuda'], ['cuenta', 'cuenta', 'Mi cuenta']);
       $('menu').innerHTML = items.map(function (x) { return '<button class="nav" data-ir="' + x[0] + '">' + ICO(x[1]) + '<span>' + x[2] + '</span></button>'; }).join('');
       ir(S.vista === 'editor' || S.vista === 'resultados' ? 'inicio' : S.vista);
@@ -243,7 +276,7 @@
   function ir(v, arg) {
     parar(); S.vista = v; window.scrollTo(0, 0); $('pagina').onclick = null;
     document.querySelectorAll('.nav').forEach(function (n) { n.classList.toggle('on', n.dataset.ir === v || (v === 'editor' || v === 'resultados') && n.dataset.ir === 'examenes'); });
-    ({ inicio: inicio, examenes: examenes, banco: banco, reportes: reportes, estudiantes: estudiantes, docentes: docentes, ayuda: ayuda, cuenta: cuenta, editor: editor, resultados: resultados })[v](arg);
+    ({ inicio: inicio, examenes: examenes, banco: banco, reportes: reportes, estudiantes: estudiantes, docentes: docentes, membresias: membresias, ayuda: ayuda, cuenta: cuenta, editor: editor, resultados: resultados })[v](arg);
   }
 
   /* ---------- Excel y PDF (librerías bajo demanda) ---------- */
@@ -279,7 +312,7 @@
       doc.autoTable({ head: [cab], body: filas, startY: 76, styles: { fontSize: opc.chica ? 7.5 : 8.8, cellPadding: 4, overflow: 'linebreak' }, headStyles: { fillColor: [79, 70, 229], halign: 'center' },
         alternateRowStyles: { fillColor: [246, 247, 251] }, columnStyles: opc.columnas || {},
         didParseCell: function (d) { if (d.section === 'body' && opc.minimo && d.column.index >= (opc.desdeCol || 0)) { var v = parseFloat(String(d.cell.raw).replace(',', '.')); if (!isNaN(v)) { d.cell.styles.halign = 'center'; if (v < opc.minimo) d.cell.styles.textColor = [200, 30, 40]; } } },
-        didDrawPage: function () { doc.setFontSize(8); doc.setTextColor(150); doc.text('Examen Seguro · Politécnico Cristiano James Davis · ' + new Date().toLocaleString('es-DO'), 40, H - 18); } });
+        didDrawPage: function () { doc.setFontSize(8); doc.setTextColor(150); doc.text(MARCA + (S.yo && S.yo.centroNombre ? ' · ' + S.yo.centroNombre : '') + ' · ' + new Date().toLocaleString('es-DO'), 40, H - 18); } });
       doc.save(archivo(nombre) + '.pdf');
     }).catch(function (e) { AVISO(e.message, 'error'); });
   }
@@ -291,7 +324,7 @@
         doc.setFont('helvetica', negrita ? 'bold' : 'normal'); doc.setFontSize(tam); doc.setTextColor(gris || 20);
         doc.splitTextToSize(String(t), W - 2 * m).forEach(function (l) { if (y > H - 50) { doc.addPage(); y = 50; } doc.text(l, m, y); y += tam * 1.4; });
       }
-      var cab = function () { linea('Politécnico Cristiano James Davis', 9.5, false, 110); linea(x.titulo, 15, true); linea([x.curso, x.materia].filter(Boolean).join(' · ') + (x.minutos ? ' · ' + x.minutos + ' minutos' : ''), 10, false, 90); };
+      var cab = function () { linea((S.yo && S.yo.centroNombre) || MARCA, 9.5, false, 110); linea(x.titulo, 15, true); linea([x.curso, x.materia].filter(Boolean).join(' · ') + (x.minutos ? ' · ' + x.minutos + ' minutos' : ''), 10, false, 90); };
       cab(); y += 4; linea('Nombre: _____________________________________   Fecha: ___________   Nota: ______', 10.5); y += 6;
       if (x.instrucciones) linea(x.instrucciones, 10, false, 70);
       preguntas.forEach(function (q, i) {
@@ -340,6 +373,16 @@
   function copiar(t) { (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { AVISO('Copiado'); }).catch(function () { prompt('Copia esto:', t); }); }
   window.__copiar = copiar;
 
+  /** Plan y días que quedan (solo en la instalación de venta). soloAviso: nada si faltan más de 5 días. */
+  function avisoMembresia(soloAviso) {
+    var m = S.panel && S.panel.yo.membresia; if (!m || soloAviso && !m.vencida && m.dias > 5) return '';
+    var f = String(m.vence).split('-').reverse().join('/'), col = m.vencida ? 'rojo' : m.dias <= 5 ? 'amarillo' : 'verde';
+    return '<div class="tarjeta" style="margin-bottom:14px;border-left:5px solid var(--' + col + ')"><b>' + ICO('premio') + ' ' + esc(m.plan) + '</b> <span class="pildora ' + col + '">' +
+      (m.vencida ? 'Vencida' : m.dias === 0 ? 'Vence hoy' : m.dias === 1 ? 'Queda 1 día' : 'Quedan ' + m.dias + ' días') + '</span><p class="suave pequeno" style="margin:6px 0 0">' +
+      (m.vencida ? 'Venció el ' + f + '. Puedes entrar y ver o descargar tus resultados, pero para crear o cambiar exámenes (y para que tus estudiantes entren) debes renovar.'
+        : 'Vence el ' + f + '.' + (m.dias <= 5 ? ' Renueva pronto para no perder el acceso a crear exámenes.' : '')) + '</p></div>';
+  }
+
   /* ---------- Inicio ---------- */
   function inicio() {
     var p = S.panel, ex = p.examenes, hora = new Date().getHours();
@@ -347,7 +390,7 @@
     var conProm = ex.filter(function (e) { return e.promedio !== null; }), ent = ex.reduce(function (a, e) { return a + e.entregados; }, 0);
     var prom = conProm.length ? Math.round(conProm.reduce(function (a, e) { return a + e.promedio * e.entregados; }, 0) / Math.max(1, conProm.reduce(function (a, e) { return a + e.entregados; }, 0))) : '—';
     var saludo = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
-    $('pagina').innerHTML = cabeza(saludo + ', ' + esc(p.yo.nombre.split(' ')[0]) + ' 👋', 'Esto es lo que pasa hoy con tus exámenes.', '<button class="btn primario" data-nuevo>' + ICO('mas') + ' Nuevo examen</button>') +
+    $('pagina').innerHTML = cabeza(saludo + ', ' + esc(p.yo.nombre.split(' ')[0]) + ' 👋', 'Esto es lo que pasa hoy con tus exámenes.', '<button class="btn primario" data-nuevo>' + ICO('mas') + ' Nuevo examen</button>') + avisoMembresia(true) +
       '<div class="kpis">' + kpi('examen', '', activos, 'Exámenes activos') + kpi('vivo', 'verde', vivo, 'Haciendo examen ahora') + kpi('check', 'azul', hoy, 'Intentos hoy') + kpi('premio', 'amarillo', prom, 'Promedio general (' + ent + ' entregas)') + '</div>' +
       (vivo ? '<div class="tarjeta" style="margin-bottom:16px"><h3>' + ICO('vivo') + ' En vivo ahora</h3><div class="chips-n">' + ex.filter(function (e) { return e.enCurso; }).map(function (e) {
         return '<button class="btn claro mini" data-res="' + e.id + '"><span class="pildora verde"><span class="punto vivo"></span>' + e.enCurso + '</span> ' + esc(e.titulo) + '</button>'; }).join('') + '</div></div>' : '') +
@@ -403,21 +446,22 @@
     ['salirEntrega', 'salida', 'rojo', 'Entregar si sale', 'Si cambia de pestaña, minimiza o sale de la pantalla completa, se entrega con lo que tenga.'],
     ['toleranciaSalidas', 'alerta', 'amarillo', 'Avisos antes de entregar', 'Cuántas salidas se le perdonan con una advertencia (0 = ninguna).', 'n', 5],
     ['bloquearCopiar', 'candado', 'cielo', 'Bloquear copiar y pegar', 'No puede seleccionar, copiar, pegar, imprimir ni usar el clic derecho.'],
-    ['senuelosIA', 'robot', 'amarillo', 'Señuelos anti-IA', 'Agrega una nota gris que apunta a una opción incorrecta, para quien fotografíe y le pregunte a una IA.'],
+    ['senuelosIA', 'robot', 'amarillo', 'Señuelos anti-IA', 'Agrega una nota gris que señala una opción al azar (solo en selección múltiple), para confundir a quien fotografíe y le pregunte a una IA.'],
     ['marcaAgua', 'marca', '', 'Marca de agua con el nombre', 'El nombre del estudiante aparece de fondo (desanima las fotos).'],
+    ['pedirPin', 'llave', 'azul', 'Pedir PIN al estudiante', 'Para entrar escribe su PIN de 4 cifras (Estudiantes ▸ Tarjetas de PIN). Apágalo mientras repartes las tarjetas: entonces basta con elegir su nombre.'],
     ['permitirCelular', 'movil', 'verde', 'Permitir celulares', 'Si el equipo no tiene pantalla completa (iPhone), deja entrar igual y vigila las salidas.'],
     ['unaPorPagina', 'lista', 'morado', 'Una pregunta por página', 'Cada pregunta sale sola en pantalla y se pasa con «Siguiente». Apagado: todas en una sola página.'],
     ['soloAdelante', 'adelante', 'rojo', 'Solo hacia adelante', 'Al pasar a la siguiente no puede volver a la anterior (el servidor bloquea los cambios). Apagado: puede ir y volver.'],
     ['barajarPreguntas', 'barajar', 'morado', 'Preguntas al azar', 'Cada estudiante recibe las preguntas en otro orden (y otras, si muestras menos que el banco).'],
     ['barajarOpciones', 'barajar', 'morado', 'Opciones al azar', 'Cambia el orden de las opciones A, B, C, D para cada estudiante.'],
     ['mostrarNota', 'premio', 'verde', 'Mostrar la nota al terminar', 'El estudiante ve su nota apenas entrega.'],
-    ['mostrarRespuestas', 'ver', 'verde', 'Mostrar respuestas correctas', 'Al terminar ve cuáles falló, la respuesta correcta y la explicación.'],
+    ['mostrarRespuestas', 'ver', 'verde', 'Mostrar respuestas correctas', 'Al terminar ve cuáles falló, la respuesta correcta y la explicación. En modo Examen exige 1 solo intento.'],
     ['intentos', 'intentos', 'azul', 'Intentos permitidos', 'Cuántas veces puede hacerlo (0 = sin límite).', 'n', 10]
   ];
   var E = null;
   function editor(arg) {
     var id = arg && typeof arg === 'object' ? arg.id : arg, paso = arg && arg.paso || 'datos';
-    if (!id) { E = { paso: paso, ex: { titulo: '', materia: '', curso: S.panel.cursos[0] || '', modo: 'EXAMEN', minutos: 30, preguntas: 0, notaMinima: 70, inicio: '', fin: '', instrucciones: '', activo: true, reglas: JSON.parse(JSON.stringify(PRESETS.estricto.r)) }, preguntas: [] }; pintarEditor(); return; }
+    if (!id) { E = { paso: paso, ex: { titulo: '', materia: '', curso: S.panel.cursos[0] || '', modo: 'EXAMEN', minutos: 30, preguntas: 0, notaMinima: 70, inicio: '', fin: '', instrucciones: '', activo: true, reglas: Object.assign(JSON.parse(JSON.stringify(PRESETS.estricto.r)), { pedirPin: true }) }, preguntas: [] }; pintarEditor(); return; }
     cargando('Abriendo el examen…');
     A({ action: 'examen', id: id }).then(function (r) {
       var x = r.examen;
@@ -755,7 +799,7 @@
     var c = $('edCuerpo');
     c.onchange = function (e) { var k = e.target.dataset.regla; if (k) { r[k] = e.target.checked; if (k === 'salirEntrega' || k === 'unaPorPagina') pasoReglas(); } };
     c.onclick = function (e) {
-      var p = e.target.closest('[data-preset]'); if (p) { E.ex.reglas = r = JSON.parse(JSON.stringify(PRESETS[p.dataset.preset].r)); AVISO('Atajo aplicado: ' + PRESETS[p.dataset.preset].t); pasoReglas(); return; }
+      var p = e.target.closest('[data-preset]'); if (p) { E.ex.reglas = r = Object.assign(JSON.parse(JSON.stringify(PRESETS[p.dataset.preset].r)), { pedirPin: r.pedirPin !== false }); AVISO('Atajo aplicado: ' + PRESETS[p.dataset.preset].t); pasoReglas(); return; }
       var b = e.target.closest('[data-d]'); if (!b) return;
       var k = b.parentNode.dataset.num, max = REGLAS.find(function (g) { return g[0] === k; })[6];
       r[k] = Math.max(0, Math.min(max, (Number(r[k]) || 0) + Number(b.dataset.d))); b.parentNode.querySelector('span').textContent = r[k];
@@ -824,7 +868,7 @@
         return '<div><em>' + (n || '') + '</em><i class="' + (i < 5 ? 'bajo' : i < 7 ? 'medio' : '') + '" style="height:' + (n / hmax * 100) + '%"></i><small>' + (i * 10) + (i === 9 ? '+' : '') + '</small></div>'; }).join('') + '</div>' +
       '<p class="suave pequeno" style="margin:10px 0 0">Máxima ' + (s.maxima === null ? '—' : s.maxima) + ' · mínima ' + (s.minima === null ? '—' : s.minima) + '</p></div>' +
       '<div class="tarjeta"><h3>' + ICO('usuarios') + ' Sin presentar (' + s.sinIntento.length + ')</h3>' + (s.sinIntento.length ? '<div class="chips-n">' + s.sinIntento.map(function (n) { return '<span class="pildora">' + esc(n) + '</span>'; }).join('') + '</div>' : '<p class="suave">¡Todos lo hicieron! 🎉</p>') + '</div></div>' +
-      '<div class="segmento" id="resTab" style="margin-bottom:12px"><button class="on" data-t="est">' + ICO('usuarios') + ' Estudiantes</button><button data-t="preg">' + ICO('lista') + ' Preguntas</button>' +
+      '<div class="segmento" id="resTab" style="margin-bottom:12px"><button class="on" data-t="est">' + ICO('usuarios') + ' Estudiantes</button><button data-t="rej">' + ICO('vivo') + ' Rejilla</button><button data-t="preg">' + ICO('lista') + ' Preguntas</button>' +
       '<button data-t="corr">' + ICO('corregir') + ' Por corregir' + (pend ? ' <span class="pildora amarillo">' + pend + '</span>' : '') + '</button></div><div id="resCuerpo"></div>';
     var tab = S.resTab || 'est';
     $('resTab').querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.dataset.t === tab); });
@@ -839,6 +883,7 @@
           (cur ? (i.limite ? '<button class="btn fantasma icono" data-mas="' + i.id + '" title="Darle más tiempo">' + ICO('reloj') + '</button>' : '') + '<button class="btn fantasma icono" data-cerrar-int="' + i.id + '" title="Entregar ya">' + ICO('check') + '</button>' : '') + '<button class="btn fantasma icono" data-anular="' + i.id + '" title="Anular (puede repetir)" style="color:var(--rojo)">' + ICO('intentos') + '</button></td></tr>';
       }).join('') + '</tbody></table></div>' : '<div class="tarjeta vacio"><div class="chip-ico">' + ICO('usuarios') + '</div><p>Nadie ha empezado todavía. Comparte el código <b>' + esc(x.codigo) + '</b>.</p></div>';
       else if (tab === 'corr') pintarCorregir();
+      else if (tab === 'rej') pintarRejilla();
       else $('resCuerpo').innerHTML = r.preguntas.length ? '<p class="suave pequeno">Ordenadas de la más difícil a la más fácil: las primeras son las que debes repasar en clase.</p>' + r.preguntas.map(function (q) {
         var tot = Object.keys(q.elegidas).reduce(function (a, k) { return a + q.elegidas[k]; }, 0) || 1;
         return '<div class="pq"><b style="white-space:pre-line">' + esc(q.enunciado) + '</b>' + (q.tema ? ' <span class="pildora">' + esc(q.tema) + '</span>' : '') +
@@ -873,24 +918,59 @@
         { minimo: x.notaMinima, desdeCol: 2, columnas: { 0: { cellWidth: 22, halign: 'center' }, 6: { cellWidth: 150 } } });
     };
     $('resCuerpo').onclick = function (e) {
-      var b = e.target.closest('[data-ver],[data-anular],[data-cerrar-int],[data-mas]'); if (!b) return;
+      var b = e.target.closest('[data-ver],[data-anular],[data-cerrar-int],[data-mas],[data-int]'); if (!b) return;
       if (b.dataset.mas) { modal('<h2>' + ICO('reloj') + ' Darle más tiempo</h2><p class="suave">Sirve si se le fue el internet o empezó tarde. Se suma a su reloj sin reiniciar el examen.</p><div class="filtros">' +
         [5, 10, 15].map(function (m) { return '<button class="btn claro" data-min="' + m + '">+' + m + ' min</button>'; }).join('') + '</div><div style="text-align:right"><button class="btn claro" data-cerrar>Cancelar</button></div>');
         $('modalCaja').onclick = function (ev) { var m = ev.target.closest('[data-min]'); if (!m) return; cerrarModal(); $('modalCaja').onclick = null;
           A({ action: 'extenderTiempo', id: b.dataset.mas, minutos: Number(m.dataset.min) }).then(function () { AVISO('Listo: +' + m.dataset.min + ' minutos'); S.recargar(); }).catch(function (er) { AVISO(er.message, 'error'); }); };
         return; }
+      if (b.dataset.int) A({ action: 'detalleIntento', id: b.dataset.int }).then(function (d) {   // una celda de la rejilla
+        var q = d.revision.filter(function (x) { return x.k === Number(b.dataset.k); })[0]; if (!q) return;
+        modal('<h2>' + ICO('ver') + ' ' + esc(d.intento.nombre) + '</h2>' + revQ(q) + (q.explicacion ? '<p class="suave pequeno" style="white-space:pre-line">' + esc(q.explicacion) + '</p>' : '') +
+          '<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px"><button class="btn claro" id="mTodo">Ver todo el intento</button><button class="btn claro" data-cerrar>Cerrar</button></div>');
+        $('mTodo').onclick = function () { cerrarModal(); var v = document.createElement('button'); v.dataset.ver = b.dataset.int; $('resCuerpo').appendChild(v); v.click(); v.remove(); };
+      }).catch(function (er) { AVISO(er.message, 'error'); });
       if (b.dataset.ver) A({ action: 'detalleIntento', id: b.dataset.ver }).then(function (d) {
         var it = d.intento;
         modal('<h2>' + ICO('ver') + ' ' + esc(it.nombre) + '</h2><p class="suave">Nota <b>' + (it.nota === '' ? '—' : it.nota) + '</b> · ' + DURACION(it.duracion) + ' · ' + esc(it.motivo || 'En curso') + '</p>' +
           (it.eventos && it.eventos.length ? '<div class="pq"><b>' + ICO('alerta') + ' Salidas registradas</b>' + it.eventos.map(function (v) { return '<div class="pequeno suave">' + FECHA(v.t) + ' · ' + esc(v.e) + '</div>'; }).join('') + '</div>' : '') +
-          d.revision.map(function (q) { return '<div class="pq" style="border-left:5px solid ' + (q.pendiente ? 'var(--amarillo)' : q.bien ? 'var(--verde)' : q.obtenidos ? 'var(--amarillo)' : 'var(--rojo)') + '"><b style="white-space:pre-line">' + q.n + '. ' + esc(q.enunciado) + '</b>' +
-            ' <span class="pildora">' + q.obtenidos + ' / ' + q.puntos + ' pt</span>' + (q.pendiente ? ' <span class="pildora amarillo">Por corregir</span>' : '') + '<div class="pequeno" style="margin-top:6px;white-space:pre-line">' +
-            (q.bien ? '✔ ' + esc(q.tu) : (q.pendiente ? '✎ ' : '✘ ') + esc(q.tu || '(sin responder)') + ' · <span style="color:var(--verde)">' + (q.tipo === 'CORTA' ? 'Modelo: ' : 'Correcta: ') + esc(q.correcta) + '</span>') + '</div></div>'; }).join('') +
+          d.revision.map(revQ).join('') +
           '<div style="text-align:right;margin-top:10px"><button class="btn claro" data-cerrar>Cerrar</button></div>', true);
       }).catch(function (er) { AVISO(er.message, 'error'); });
       if (b.dataset.anular) confirmar('¿Anular este intento?', 'Se borra de las estadísticas y el estudiante podrá hacer el examen otra vez.', 'Anular', function () { A({ action: 'anularIntento', id: b.dataset.anular }).then(function () { AVISO('Intento anulado'); S.recargar(); }).catch(function (er) { AVISO(er.message, 'error'); }); }, true);
       if (b.dataset.cerrarInt) confirmar('¿Entregar ahora?', 'Se califica con lo que lleva respondido.', 'Entregar', function () { A({ action: 'cerrarIntento', id: b.dataset.cerrarInt }).then(function () { AVISO('Entregado'); S.recargar(); }).catch(function (er) { AVISO(er.message, 'error'); }); });
     };
+  }
+
+  /** Una pregunta revisada (detalleIntento): enunciado, lo que respondió y la correcta. */
+  function revQ(q) {
+    return '<div class="pq" style="border-left:5px solid ' + (q.pendiente ? 'var(--amarillo)' : q.bien ? 'var(--verde)' : q.obtenidos ? 'var(--amarillo)' : 'var(--rojo)') + '"><b style="white-space:pre-line">' + q.n + '. ' + esc(q.enunciado) + '</b>' +
+      ' <span class="pildora">' + q.obtenidos + ' / ' + q.puntos + ' pt</span>' + (q.pendiente ? ' <span class="pildora amarillo">Por corregir</span>' : '') + '<div class="pequeno" style="margin-top:6px;white-space:pre-line">' +
+      (q.bien ? '✔ ' + esc(q.tu) : (q.pendiente ? '✎ ' : '✘ ') + esc(q.tu || '(sin responder)') + ' · <span style="color:var(--verde)">' + (q.tipo === 'CORTA' ? 'Modelo: ' : 'Correcta: ') + esc(q.correcta) + '</span>') + '</div></div>';
+  }
+
+  /* Rejilla en vivo: estudiantes × preguntas (se actualiza con «Ver en vivo») */
+  function pintarRejilla() {
+    var id = R.examen.id;
+    var dibujar = function (m) {
+      var c = $('resCuerpo'), prev = $('rejDesliza'), sl = prev ? prev.scrollLeft : (S.rejSL || 0);
+      if (!c) return;
+      if (!m.intentos.length) { c.innerHTML = '<div class="tarjeta vacio"><div class="chip-ico">' + ICO('usuarios') + '</div><p>Nadie ha empezado todavía. Comparte el código <b>' + esc(R.examen.codigo) + '</b>.</p></div>'; return; }
+      c.innerHTML = '<p class="suave pequeno leyenda-rej"><i class="c1"></i>Bien <i class="c5"></i>Parcial o por corregir <i class="c0"></i>Mal <i class="cn"></i>Sin responder' +
+        (S.vivo ? '' : ' · Pulsa <b>Ver en vivo</b> para que se actualice sola.') + ' Toca un cuadro para ver la pregunta y la respuesta.</p>' +
+        '<div class="tarjeta" style="padding:10px"><div class="desliza" id="rejDesliza"><table class="rej"><thead><tr><th class="fijo">Estudiante</th>' + m.preguntas.map(function (q) { return '<th title="' + esc(q.n + '. ' + q.enunciado) + '">' + q.n + '</th>'; }).join('') + '</tr></thead><tbody>' +
+        m.intentos.map(function (i) {
+          var suyas = i.celdas.filter(function (x) { return x !== -1; }), hechas = suyas.filter(function (x) { return x !== null; }).length, cur = i.estado === 'EN_CURSO';
+          return '<tr><th class="fijo">' + esc(i.nombre) + '<small' + (cur ? ' style="color:var(--verde)"' : '') + '>' + (cur ? 'En curso · ' + hechas + '/' + suyas.length : 'Nota ' + (i.nota === null ? '—' : i.nota)) + '</small></th>' + i.celdas.map(function (x, j) {
+            if (x === -1) return '<td></td>';
+            return '<td><button class="' + (x === null ? 'cn' : x === 1 ? 'c1' : x === 0 ? 'c0' : 'c5') + '" data-int="' + esc(i.id) + '" data-k="' + i.ks[j] + '" aria-label="' + esc(i.nombre + ', pregunta ' + m.preguntas[j].n) + '"></button></td>';
+          }).join('') + '</tr>';
+        }).join('') + '</tbody></table></div></div>';
+      $('rejDesliza').scrollLeft = sl; $('rejDesliza').onscroll = function () { S.rejSL = this.scrollLeft; };
+    };
+    if (S.mat && S.mat.id === id) dibujar(S.mat.m); else { S.rejSL = 0; $('resCuerpo').innerHTML = '<div class="girar" style="margin:30px auto"></div>'; }
+    A({ action: 'vivoMatriz', id: id }).then(function (m) { S.mat = { id: id, m: m }; if (S.vista === 'resultados' && S.resTab === 'rej' && R.examen.id === id) dibujar(m); })
+      .catch(function (er) { if ($('resCuerpo')) $('resCuerpo').innerHTML = '<p class="error">' + esc(er.message) + '</p>'; });
   }
 
   /* Corrección manual de respuestas cortas: pregunta por pregunta, todo el curso */
@@ -1061,20 +1141,43 @@
   function estudiantes() {
     var cursos = S.panel.cursos;
     $('pagina').innerHTML = cabeza('Estudiantes', 'Las listas que ven tus estudiantes al entrar a un examen.') +
-      '<div class="filtros"><select class="entrada" id="eCurso">' + cursos.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('') + '</select><span class="suave pequeno" id="eCuenta"></span></div>' +
+      '<div class="filtros"><select class="entrada" id="eCurso">' + cursos.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('') + '</select><span class="suave pequeno" id="eCuenta"></span>' +
+      '<button class="btn claro" id="eTarjetas" title="Imprime una tarjeta por estudiante con su PIN para entrar a los exámenes">' + ICO('imprimir') + ' Tarjetas de PIN</button></div>' +
       '<div class="dos"><div class="tarjeta desliza" id="eLista"></div><div class="tarjeta"><h3>' + ICO('mas') + ' Agregar estudiantes</h3><p class="suave pequeno">Pega los nombres, uno por línea (puedes copiarlos de Excel).</p>' +
       '<textarea class="entrada" id="ePegar" style="min-height:180px" placeholder="Ana María Pérez\nLuis Gómez"></textarea><button class="btn primario" id="eAgregar" style="margin-top:10px">' + ICO('check') + ' Agregar a la lista</button></div></div>';
     function cargar() {
       var c = $('eCurso').value; if (!c) { $('eLista').innerHTML = '<p class="suave">No tienes cursos asignados.</p>'; return; }
       $('eLista').innerHTML = '<div class="girar" style="margin:20px auto"></div>';
       A({ action: 'estudiantes', curso: c }).then(function (r) {
+        lista = r.estudiantes;
         $('eCuenta').textContent = r.estudiantes.filter(function (s) { return s.activo; }).length + ' activos';
-        $('eLista').innerHTML = r.estudiantes.length ? '<table class="tabla"><thead><tr><th>#</th><th>Nombre</th><th>En la lista</th></tr></thead><tbody>' + r.estudiantes.map(function (s, i) {
-          return '<tr><td class="tenue">' + (i + 1) + '</td><td>' + esc(s.nombre) + '</td><td><label class="interruptor"><input type="checkbox" data-est="' + s.id + '"' + (s.activo ? ' checked' : '') + '><i></i></label></td></tr>'; }).join('') + '</tbody></table>'
+        $('eLista').innerHTML = r.estudiantes.length ? '<table class="tabla lista-est"><thead><tr><th>#</th><th>Nombre</th><th>PIN</th><th>En la lista</th></tr></thead><tbody>' + r.estudiantes.map(function (s, i) {
+          return '<tr><td class="tenue">' + (i + 1) + '</td><td>' + esc(s.nombre) + '</td><td><code>' + esc(s.pin || '—') + '</code> <button class="btn fantasma mini" data-pin="' + esc(s.id) + '" title="Darle un PIN nuevo (si lo perdió o alguien más lo vio)">' + ICO('recargar') + '</button></td>' +
+            '<td><label class="interruptor"><input type="checkbox" data-est="' + esc(s.id) + '"' + (s.activo ? ' checked' : '') + '><i></i></label></td></tr>'; }).join('') + '</tbody></table>'
           : '<div class="vacio"><p>Este curso todavía no tiene lista.</p></div>';
       }).catch(function (e) { $('eLista').innerHTML = '<p class="error">' + esc(e.message) + '</p>'; });
     }
+    var lista = [];
     $('eCurso').onchange = cargar;
+    $('eLista').onclick = function (e) {
+      var b = e.target.closest('[data-pin]'); if (!b) return;
+      if (!confirm('¿Darle un PIN nuevo? El anterior deja de servir y tendrás que entregarle el nuevo.')) return;
+      A({ action: 'reiniciarPin', curso: $('eCurso').value, id: b.dataset.pin }).then(function (r) { AVISO('PIN nuevo: ' + r.pin); cargar(); }).catch(function (er) { AVISO(er.message, 'error'); });
+    };
+    $('eTarjetas').onclick = function () {
+      var act = lista.filter(function (s) { return s.activo; }), curso = $('eCurso').value;
+      if (!act.length) { AVISO('Este curso no tiene estudiantes activos.', 'error'); return; }
+      var w = window.open('', '_blank'); if (!w) { AVISO('Permite las ventanas emergentes para imprimir las tarjetas.', 'error'); return; }
+      w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Tarjetas de PIN · ' + esc(curso) + '</title><style>' +
+        'body{font-family:system-ui,sans-serif;margin:12px;color:#111}.g{display:grid;grid-template-columns:repeat(3,1fr);gap:0}' +
+        '.t{border:1px dashed #888;padding:12px 14px;break-inside:avoid;min-height:118px}.t b{display:block;font-size:15px}.t small{color:#555}' +
+        '.p{font:700 28px ui-monospace,monospace;letter-spacing:6px;margin:6px 0}.u{font-size:11px;word-break:break-all;color:#333}' +
+        '.no{margin-bottom:10px}@media print{.no{display:none}}</style></head><body>' +
+        '<p class="no">Recorta por las líneas y entrega cada tarjeta a su estudiante. El PIN es personal: no lo compartas. <button onclick="print()">Imprimir</button></p><div class="g">' +
+        act.map(function (s) { return '<div class="t"><b>' + esc(s.nombre) + '</b><small>' + esc(curso) + ' · ' + esc(MARCA) + '</small><div class="p">' + esc(s.pin || '----') + '</div><div class="u">Entra en: ' + esc(WEB) + '</div></div>'; }).join('') +
+        '</div></body></html>');
+      w.document.close(); setTimeout(function () { w.print(); }, 300);
+    };
     $('eLista').onchange = function (e) { var id = e.target.dataset.est; if (id) A({ action: 'guardarEstudiantes', curso: $('eCurso').value, id: id, activo: e.target.checked }).then(function () { AVISO(e.target.checked ? 'Activado' : 'Quitado de la lista'); }).catch(function (er) { AVISO(er.message, 'error'); }); };
     $('eAgregar').onclick = function () { A({ action: 'guardarEstudiantes', curso: $('eCurso').value, pegado: $('ePegar').value }).then(function (r) { AVISO(r.nuevos + ' agregados'); $('ePegar').value = ''; cargar(); }).catch(function (er) { AVISO(er.message, 'error'); }); };
     cargar();
@@ -1122,10 +1225,55 @@
     $('asOk').onclick = function () { A({ action: 'guardarAsignacion', docenteId: d.id, curso: $('asCurso').value, materia: $('asMat').value }).then(function () { cerrarModal(); AVISO('Asignación agregada'); docentes(); }).catch(function (er) { AVISO(er.message, 'error'); }); };
   }
 
+  /* ---------- Membresías (solo la cuenta dueña, instalación de venta) ---------- */
+  function membresias() {
+    cargando('Cargando membresías…');
+    A({ action: 'membresiasListar' }).then(function (r) {
+      if (S.vista !== 'membresias') return;
+      var fc = function (x) { return x ? String(x).slice(0, 10).split('-').reverse().join('/') : '—'; }, nom = {};
+      r.docentes.forEach(function (d) { nom[d.id] = d.nombre; });
+      var conAcceso = r.docentes.filter(function (d) { return d.dueno || !d.vencida; }).length;
+      $('pagina').innerHTML = cabeza('Membresías', conAcceso + ' con acceso · ' + (r.docentes.length - conAcceso) + ' vencidas') +
+        '<div class="dos"><div class="tarjeta desliza"><h3>' + ICO('usuarios') + ' Docentes</h3><table class="tabla"><thead><tr><th>Docente</th><th>Plan</th><th>Vence</th><th>Días</th><th>Pagado</th><th></th></tr></thead><tbody>' +
+        r.docentes.map(function (d) {
+          var col = d.dueno ? 'morado' : d.vencida ? 'rojo' : d.dias <= 5 ? 'amarillo' : 'verde';
+          return '<tr style="' + (d.activo ? '' : 'opacity:.5') + '"><td><b>' + esc(d.nombre) + '</b><div class="tenue pequeno">' + esc(d.usuario) + '</div></td><td>' + (d.dueno ? 'Dueño' : esc(d.plan)) + '</td>' +
+            '<td style="white-space:nowrap">' + (d.dueno ? '—' : fc(d.vence)) + '</td><td><span class="pildora ' + col + '">' + (d.dueno ? 'Sin límite' : d.vencida ? 'Vencida' : d.dias + ' d') + '</span></td>' +
+            '<td style="white-space:nowrap">' + (d.total ? esc(d.total + ' ' + d.moneda) : '—') + '</td><td>' + (d.dueno ? '' : '<button class="btn fantasma mini" data-pagar="' + esc(d.id) + '">' + ICO('mas') + ' Pago</button>') + '</td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        '<form class="tarjeta" id="mbForm"><h3>' + ICO('mas') + ' Registrar un pago</h3><p class="suave pequeno" style="margin-top:0">Alarga el acceso desde hoy o desde su vencimiento actual (lo que sea más tarde).</p>' +
+        '<label class="campo"><span>Docente</span><select class="entrada" id="mbDoc">' + r.docentes.filter(function (d) { return !d.dueno; }).map(function (d) { return '<option value="' + esc(d.id) + '">' + esc(d.nombre + ' (' + d.usuario + ')') + '</option>'; }).join('') + '</select></label>' +
+        '<div class="fila"><label class="campo"><span>Plan</span><input class="entrada" id="mbPlan" list="mbPlanes" value="Mensual" maxlength="40"><datalist id="mbPlanes"><option>Mensual</option><option>Trimestral</option><option>Semestral</option><option>Anual</option></datalist></label>' +
+        '<label class="campo"><span>Meses</span><input class="entrada" id="mbMeses" type="number" min="1" max="36" value="1" inputmode="numeric"></label></div>' +
+        '<label class="campo"><span>O vence el (opcional)</span><input class="entrada" id="mbVence" type="date"></label>' +
+        '<div class="fila"><label class="campo"><span>Monto</span><input class="entrada" id="mbMonto" type="number" min="0" step="0.01" inputmode="decimal"></label>' +
+        '<label class="campo"><span>Moneda</span><select class="entrada" id="mbMoneda"><option>USD</option><option>DOP</option><option>EUR</option></select></label></div>' +
+        '<label class="campo"><span>Método</span><select class="entrada" id="mbMetodo"><option>Transferencia</option><option>Efectivo</option><option>Tarjeta</option><option>PayPal</option><option>Otro</option></select></label>' +
+        '<label class="campo"><span>Nota</span><input class="entrada" id="mbNota" maxlength="200" placeholder="Referencia, comprobante…"></label>' +
+        '<button class="btn primario ancho">' + ICO('check') + ' Registrar pago</button></form></div>' +
+        '<div class="tarjeta desliza"><h3>' + ICO('lista') + ' Pagos registrados</h3>' + (r.pagos.length ? '<table class="tabla"><thead><tr><th>Fecha</th><th>Docente</th><th>Plan</th><th>Periodo</th><th>Monto</th><th>Método</th><th></th></tr></thead><tbody>' +
+        r.pagos.map(function (m) {
+          return '<tr style="' + (m.anulada ? 'opacity:.5;text-decoration:line-through' : '') + '"><td style="white-space:nowrap">' + fc(m.creado) + '</td><td>' + esc(nom[m.docenteId] || m.docenteId) + '</td><td>' + esc(m.plan) + '</td>' +
+            '<td style="white-space:nowrap">' + fc(m.inicio) + ' → ' + fc(m.vence) + '</td><td style="white-space:nowrap">' + esc(m.monto + ' ' + m.moneda) + '</td><td>' + esc(m.metodo) + (m.nota ? '<div class="tenue pequeno">' + esc(m.nota) + '</div>' : '') + '</td>' +
+            '<td>' + (m.anulada ? '<span class="pildora">Anulado</span>' : '<button class="btn fantasma mini" data-anula="' + esc(m.id) + '" style="color:var(--rojo)">Anular</button>') + '</td></tr>';
+        }).join('') + '</tbody></table>' : '<p class="suave">Todavía no hay pagos.</p>') + '</div>';
+      $('mbForm').onsubmit = function (e) {
+        e.preventDefault(); var b = this.querySelector('button'); b.disabled = true;
+        A({ action: 'membresiaRegistrar', docenteId: $('mbDoc').value, plan: $('mbPlan').value, meses: Number($('mbMeses').value), vence: $('mbVence').value, monto: $('mbMonto').value === '' ? '' : Number($('mbMonto').value),
+          moneda: $('mbMoneda').value, metodo: $('mbMetodo').value, nota: $('mbNota').value })
+          .then(function (x) { AVISO('Pago registrado · vence el ' + fc(x.vence)); membresias(); }).catch(function (er) { AVISO(er.message, 'error'); b.disabled = false; });
+      };
+      $('pagina').onclick = function (e) {
+        var p = e.target.closest('[data-pagar]'); if (p) { $('mbDoc').value = p.dataset.pagar; $('mbForm').scrollIntoView({ behavior: 'smooth' }); $('mbMonto').focus(); return; }
+        var a = e.target.closest('[data-anula]'); if (a) confirmar('¿Anular este pago?', 'Se descuenta su tiempo. El registro queda tachado en la lista.', 'Anular', function () { A({ action: 'membresiaAnular', id: a.dataset.anula }).then(function () { AVISO('Pago anulado'); membresias(); }).catch(function (er) { AVISO(er.message, 'error'); }); }, true);
+      };
+    }).catch(function (e) { $('pagina').innerHTML = '<div class="tarjeta"><p class="error">' + esc(e.message) + '</p></div>'; });
+  }
+
   /* ---------- Mi cuenta ---------- */
   function cuenta() {
     var y = S.panel.yo;
-    $('pagina').innerHTML = cabeza('Mi cuenta') + '<div class="dos"><div class="tarjeta"><div style="display:flex;gap:14px;align-items:center"><div class="avatar" style="width:56px;height:56px;font-size:20px">' + esc($('yoIni').textContent) + '</div><div><h2 style="margin:0">' + esc(y.nombre) + '</h2><span class="suave">' + esc(y.usuario) + ' · ' + (y.rol === 'ADMIN' ? 'Coordinación' : 'Docente') + '</span></div></div>' +
+    $('pagina').innerHTML = cabeza('Mi cuenta') + avisoMembresia(false) + '<div class="dos"><div class="tarjeta"><div style="display:flex;gap:14px;align-items:center"><div class="avatar" style="width:56px;height:56px;font-size:20px">' + esc($('yoIni').textContent) + '</div><div><h2 style="margin:0">' + esc(y.nombre) + '</h2><span class="suave">' + esc(y.usuario) + ' · ' + (y.rol === 'ADMIN' ? 'Coordinación' : 'Docente') + '</span></div></div>' +
       '<h3 style="margin-top:18px">' + ICO('libro') + ' Mis cursos y materias</h3><div class="chips-n">' + (S.panel.asignaciones.length ? S.panel.asignaciones.map(function (a) { return '<span class="pildora morado">' + esc(a.curso + ' · ' + a.materia) + '</span>'; }).join('') : '<span class="suave">Pídele a la coordinación que te asigne tus materias.</span>') + '</div>' +
       '<h3 style="margin-top:18px">' + ICO('ajustes') + ' Apariencia</h3><div class="tema"></div></div>' +
       '<form class="tarjeta" id="fClave"><h3>' + ICO('llave') + ' Cambiar contraseña</h3><label class="campo"><span>Contraseña actual</span><input class="entrada" type="password" id="cActual" autocomplete="current-password"></label>' +
@@ -1146,10 +1294,10 @@
   function misCentros() {
     var y = S.panel.yo, caja = document.createElement('div'); caja.className = 'tarjeta'; caja.style.marginTop = '14px';
     caja.innerHTML = '<h3>' + ICO('escudo') + ' Mis centros</h3><p class="suave pequeno" style="margin:4px 0 10px">Si das clases en otro lugar (universidad, instituto, academia), créalo o únete con el código que te dé su administración. Cada centro tiene sus propios cursos, estudiantes y exámenes.</p>' +
-      '<table class="tabla"><tr><th>Centro</th><th>Tu rol</th><th></th></tr>' + (y.centros || []).map(function (c) {
+      '<div class="desliza"><table class="tabla"><tr><th>Centro</th><th>Tu rol</th><th></th></tr>' + (y.centros || []).map(function (c) {
         return '<tr><td><b>' + esc(c.nombre) + '</b>' + (c.id === y.centro ? ' <span class="pildora verde">Ahora</span>' : '') + '</td><td>' + (c.rol === 'ADMIN' ? 'Administración' : 'Docente') + '</td><td style="white-space:nowrap">' +
           '<button class="btn fantasma mini" data-ce="' + esc(c.id) + '" data-mo="DOCENTE">Entrar como docente</button>' + (c.rol === 'ADMIN' ? '<button class="btn fantasma mini" data-ce="' + esc(c.id) + '" data-mo="ADMIN">Entrar como administración</button>' : '') + '</td></tr>';
-      }).join('') + '</table>' +
+      }).join('') + '</table></div>' +
       '<div class="dos" style="margin-top:12px"><div><b class="pequeno">Crear un centro</b><div class="filtros" style="margin-top:6px"><input class="entrada" id="ceNombre" maxlength="80" placeholder="Nombre (ej. Universidad X)"><select class="entrada" id="ceTipo"><option>Universidad</option><option>Instituto</option><option>Liceo</option><option>Escuela</option><option>Academia</option><option>Otro</option></select><button class="btn primario" id="ceCrear">' + ICO('mas') + ' Crear</button></div></div>' +
       '<div><b class="pequeno">Unirme con un código</b><div class="filtros" style="margin-top:6px"><input class="entrada" id="ceCodigo" placeholder="XXXX-XXXX" autocapitalize="characters"><button class="btn claro" id="ceUnir">Unirme</button></div></div></div>';
     $('pagina').appendChild(caja);
@@ -1173,10 +1321,10 @@
     $('pagina').appendChild(caja);
     function lista() {
       A({ action: 'clavesIA' }).then(function (r) {
-        $('iaLista').innerHTML = r.claves.length ? '<table class="tabla"><tr><th>Nombre</th><th>Vence</th><th>Último uso</th><th>Usos</th><th></th></tr>' + r.claves.map(function (c) {
+        $('iaLista').innerHTML = r.claves.length ? '<div class="desliza"><table class="tabla"><tr><th>Nombre</th><th>Vence</th><th>Último uso</th><th>Usos</th><th></th></tr>' + r.claves.map(function (c) {
           return '<tr><td>' + esc(c.nombre) + '</td><td>' + (c.vence ? esc(String(c.vence).slice(0, 10)) : 'Permanente') + '</td><td>' + esc(String(c.ultimoUso || '—').replace('T', ' ').slice(0, 16)) + '</td><td>' + c.usos + '</td><td>' +
             (c.activa ? '<button class="btn fantasma mini" data-rev="' + esc(c.id) + '">Revocar</button>' : '<span class="pildora">Inactiva</span>') + '</td></tr>';
-        }).join('') + '</table>' : 'Todavía no tienes claves.';
+        }).join('') + '</table></div>' : 'Todavía no tienes claves.';
       }).catch(function (er) { $('iaLista').textContent = er.message; });
     }
     $('iaLista').onclick = function (e) {

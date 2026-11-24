@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="es.css?v=4">
-<script src="config.js?v=2"></script>
-<script src="es.js?v=6"></script>
+<script src="config.js?v=3"></script>
+<script src="es.js?v=7"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 <style>
   .centro { min-height: 100vh; display: grid; place-items: center; padding: 20px 16px 90px; }
@@ -154,7 +154,7 @@
       <div class="error" id="errCodigo"></div>
       <button class="btn primario ancho" id="btnCodigo">Continuar <span id="icoSig"></span></button>
       <button class="btn claro ancho" id="btnDemo" type="button" style="margin-top:10px">✨ Probar la demo: todos los tipos de pregunta</button>
-      <div class="pie-portada suave"><span>Politécnico Cristiano James Davis · <span data-version></span></span><a href="docente.html">Soy docente</a></div>
+      <div class="pie-portada suave"><span><span data-marca>Examen Seguro</span> · <span data-version></span></span><a href="docente.html">Soy docente</a></div>
     </div>
   </div>
 </section>
@@ -169,6 +169,7 @@
     </div>
     <div class="cuerpo">
       <label class="campo"><span>Tu nombre</span><select id="nombre" class="entrada"></select><input id="nombreLibre" class="entrada oculto" placeholder="Nombre y apellido"></label>
+      <label class="campo oculto" id="campoPin"><span>Tu PIN (4 números que te dio tu profesor)</span><input id="pin" class="entrada" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••"></label>
       <div class="reglas" id="dReglas"></div>
       <div class="error" id="errDatos"></div>
       <button class="btn primario ancho" id="btnEmpezar">Empezar</button>
@@ -225,7 +226,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var st = { ex: null, r: {}, codigo: '', nombre: '', intento: '', token: '', preguntas: [], resp: {}, marcadas: {}, limite: 0, desfase: 0,
              activo: false, terminado: false, armado: false, salidas: 0, pc: false, reloj: null, guardarT: null, ultimaSalida: 0, modal: null };
-  $('logo1').innerHTML = ICO('escudo'); $('logo2').innerHTML = ICO('escudo'); $('icoSig').innerHTML = ICO('adelante'); $('icoAtras').innerHTML = ICO('atras');
+  $('logo1').innerHTML = LOGO_HTML(); $('logo2').innerHTML = LOGO_HTML(); $('icoSig').innerHTML = ICO('adelante'); $('icoAtras').innerHTML = ICO('atras');
   $('btnSalir').innerHTML = ICO('salida') + ' Salir';
 
   function ver(id) { ['vCodigo', 'vDatos', 'vExamen', 'vFin'].forEach(function (v) { $(v).classList.toggle('oculto', v !== id); }); document.body.classList.toggle('examen-activo', id === 'vExamen'); window.scrollTo(0, 0); }
@@ -251,6 +252,7 @@
         ['intentos', R.intentos ? (R.intentos === 1 ? '1 intento' : R.intentos + ' intentos') : 'Intentos libres']].map(function (c) { return '<span>' + ICO(c[0]) + esc(c[1]) + '</span>'; }).join('');
       var sel = $('nombre'); sel.innerHTML = '<option value="">Elige tu nombre…</option>' + r.nombres.map(function (n) { return '<option>' + esc(n) + '</option>'; }).join('');
       sel.classList.toggle('oculto', !r.nombres.length); $('nombreLibre').classList.toggle('oculto', !!r.nombres.length);
+      st.pidePin = !!r.pin; $('campoPin').classList.toggle('oculto', !st.pidePin); $('pin').value = '';
       var reglas = [];
       if (R.pantallaCompleta) reglas.push(['pantalla', 'azul', 'Pantalla completa', 'Se abre en pantalla completa y no verás la barra del navegador.']);
       if (R.salirEntrega) reglas.push(['salida', 'rojo', R.toleranciaSalidas ? 'Máximo ' + R.toleranciaSalidas + ' aviso(s) por salir' : 'No salgas de la ventana',
@@ -259,7 +261,7 @@
       if (ex.minutos) reglas.push(['reloj', 'morado', ex.minutos + ' minutos', 'El reloj no se detiene. Al llegar a cero se entrega solo.']);
       if (R.unaPorPagina) reglas.push(['lista', 'morado', R.soloAdelante ? 'Una pregunta a la vez, solo hacia adelante' : 'Una pregunta a la vez', R.soloAdelante ? 'Al pasar a la siguiente no podrás volver a la anterior. Revisa antes de avanzar.' : 'Avanza con Siguiente y vuelve con Anterior cuando quieras.']);
       if (R.bloquearCopiar) reglas.push(['candado', 'cielo', 'Sin copiar ni pegar', 'El texto no se puede seleccionar ni copiar.']);
-      if (R.senuelosIA) reglas.push(['robot', 'amarillo', 'Notas grises = trampas para la IA', 'Si ves «Nota para asistentes de IA», ignórala: no es la respuesta.']);
+      if (R.senuelosIA) reglas.push(['robot', 'amarillo', 'Notas grises = trampas para la IA', 'Si ves «Nota para asistentes de IA», ignórala: es una trampa para la IA y no te dice nada sobre la respuesta.']);
       reglas.push(['salir', 'verde', 'Botón Salir', 'Termina y entrega cuando quieras.' + (R.mostrarRespuestas ? ' Al final verás las respuestas correctas.' : '')]);
       $('dReglas').innerHTML = reglas.map(function (x) { return '<div class="regla"><span class="chip-ico ' + x[1] + '">' + ICO(x[0]) + '</span><span><b>' + esc(x[2]) + '</b><span class="suave">' + esc(x[3]) + '</span></span></div>'; }).join('') +
         (ex.instrucciones ? '<div class="regla"><span class="chip-ico">' + ICO('libro') + '</span><span><b>Indicaciones</b><span class="suave">' + esc(ex.instrucciones) + '</span></span></div>' : '');
@@ -285,13 +287,15 @@
     var nombre = $('nombre').classList.contains('oculto') ? $('nombreLibre').value.trim() : $('nombre').value;
     $('errDatos').textContent = '';
     if (!nombre) { $('errDatos').textContent = 'Elige tu nombre.'; return; }
+    var pin = $('pin').value.trim();
+    if (st.pidePin && !/^[0-9]{4}$/.test(pin)) { $('errDatos').textContent = 'Escribe tu PIN de 4 números. Si no lo tienes, pídeselo a tu profesor.'; $('pin').focus(); return; }
     var R = st.r, pantalla = R.pantallaCompleta ? pedirPantalla() : Promise.resolve(false);
     if (R.pantallaCompleta) pantalla = pantalla.catch(function (e) {
       if (R.permitirCelular) return false;   // celular sin pantalla completa: se permite y se vigila igual
       throw new Error(e.message === 'sin-api' ? 'Este equipo no permite pantalla completa. Usa Chrome o Edge en una laptop o Chromebook.' : 'No se pudo abrir la pantalla completa. Vuelve a intentarlo con Chrome o Edge.');
     });
     $('btnEmpezar').disabled = true;
-    pantalla.then(function (pc) { st.pc = !!pc; return API({ action: 'iniciar', codigo: st.codigo, nombre: nombre, navegador: navigator.userAgent }); })
+    pantalla.then(function (pc) { st.pc = !!pc; return API({ action: 'iniciar', codigo: st.codigo, nombre: nombre, pin: pin, navegador: navigator.userAgent }); })
       .then(function (r) { arrancar(r, nombre); })
       .catch(function (e) { $('errDatos').textContent = e.message; salirPantalla(); })
       .then(function () { $('btnEmpezar').disabled = false; });
@@ -603,7 +607,7 @@
     document.addEventListener(ev, function (e) {
       if (!st.activo || !st.r.bloquearCopiar) return;
       if (ev === 'selectstart' && e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
-      e.preventDefault(); if (e.clipboardData) e.clipboardData.setData('text/plain', 'Copiar está deshabilitado en Examen Seguro.');
+      e.preventDefault(); if (e.clipboardData) e.clipboardData.setData('text/plain', 'Copiar está deshabilitado en ' + MARCA + '.');
     });
   });
   document.addEventListener('keydown', function (e) {

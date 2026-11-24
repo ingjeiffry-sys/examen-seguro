@@ -7,7 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="es.css?v=4">
-<script src="es.js?v=6"></script>
+<script src="config.js?v=3"></script>
+<script src="es.js?v=7"></script>
 <style>
   .guia { max-width: 900px; margin: 0 auto; padding: 28px 16px 80px; }
   .portada { padding: 30px 28px; border-radius: 26px; color: #fff; background: var(--marca); position: relative; overflow: hidden; margin-bottom: 22px; }
@@ -28,11 +29,11 @@
 </head>
 <body>
 <div class="fondo"><i></i><i></i><i></i><i></i></div>
-<main class="guia">
+<main class="guia" data-marca-texto>
   <div class="portada">
     <div class="chip-ico" id="logoG" style="background:rgb(255 255 255 / .2);color:#fff"></div>
     <h1>Guía de Examen Seguro</h1>
-    <p>Politécnico Cristiano James Davis · Para docentes, coordinación y estudiantes · <span data-version>v2.2</span></p>
+    <p>Para docentes, coordinación y estudiantes · <span data-version>v2.2</span></p>
     <div class="acciones-g no-imprimir"><a class="btn claro" href="docente.html">Ir al panel docente</a><a class="btn claro" href="index.html">Página del estudiante</a><button class="btn claro" onclick="print()">Imprimir o guardar en PDF</button></div>
   </div>
 
@@ -231,7 +232,7 @@ Explicación: La RAM es volátil.</pre>
         <tr><td>Entregar si sale</td><td>Si cambia de pestaña, minimiza o sale de la pantalla completa, se entrega con lo que tenga.</td></tr>
         <tr><td>Avisos antes de entregar</td><td>Cuántas salidas se le perdonan con una advertencia (0 = ninguna).</td></tr>
         <tr><td>Bloquear copiar y pegar</td><td>No puede seleccionar, copiar, pegar, imprimir ni usar el clic derecho.</td></tr>
-        <tr><td>Señuelos anti-IA</td><td>Agrega texto oculto que lleva a una IA a elegir una opción incorrecta si fotografían la pregunta.</td></tr>
+        <tr><td>Señuelos anti-IA</td><td>Agrega una nota gris que señala una opción al azar (solo en selección múltiple) para confundir a una IA si fotografían la pregunta. Los estudiantes saben que deben ignorarla.</td></tr>
         <tr><td>Marca de agua</td><td>Su nombre aparece de fondo; desanima las fotos.</td></tr>
         <tr><td>Permitir celulares</td><td>Deja entrar desde equipos sin pantalla completa (iPhone) y vigila las salidas.</td></tr>
         <tr><td>Una pregunta por página</td><td>Cada pregunta sale sola en pantalla y se pasa con «Siguiente». Apagado: todas en una sola página.</td></tr><tr><td>Solo hacia adelante</td><td>Con una por página: no puede volver a la anterior (el servidor bloquea los cambios). Apagado: puede ir y volver con «Anterior».</td></tr><tr><td>Preguntas / opciones al azar</td><td>Cada estudiante recibe otro orden.</td></tr>
@@ -337,6 +338,6 @@ Explicación: La RAM es volátil.</pre>
     <h3>¿Dónde quedan los datos?</h3><p>En la hoja de Google del centro. Las respuestas correctas nunca llegan al navegador del estudiante antes de entregar.</p>
   </section>
 </main>
-<script>document.getElementById('logoG').innerHTML = ICO('escudo'); document.querySelectorAll('section h2 .chip-ico').forEach(function (x) { x.innerHTML = ICO('video'); });</script>
+<script>document.getElementById('logoG').innerHTML = LOGO_HTML(); document.querySelectorAll('section h2 .chip-ico').forEach(function (x) { x.innerHTML = ICO('video'); });</script>
 </body>
 </html>
