@@ -870,7 +870,7 @@
     $('edGuardar').disabled = true; $('edEstado').textContent = 'Guardando…';
     var datos = { action: 'guardarExamen', examen: { id: x.id, titulo: x.titulo, materia: x.materia, curso: x.curso, modo: x.modo, minutos: x.minutos, preguntas: x.preguntas, notaMinima: x.notaMinima,
       inicio: x.inicio, fin: x.fin, instrucciones: x.instrucciones, activo: x.activo, reglas: x.reglas, compartido: !!x.compartido },
-      preguntas: E.preguntas.map(function (q) { return { tipo: q.tipo, enunciado: q.enunciado, opciones: q.tipo === 'CORTA' ? [] : q.opciones.filter(function (o) { return o.trim(); }), correcta: q.correcta, puntos: q.puntos, explicacion: q.explicacion, tema: q.tema, media: q.media || '' }; }) };
+      preguntas: E.preguntas.map(function (q) { return { id: q.id || '', tipo: q.tipo, enunciado: q.enunciado, opciones: q.tipo === 'CORTA' ? [] : q.opciones.filter(function (o) { return o.trim(); }), correcta: q.correcta, puntos: q.puntos, explicacion: q.explicacion, tema: q.tema, media: q.media || '' }; }) };
     A(datos).then(function (r) {
       var nuevo = !x.id; x.id = r.id; x.codigo = r.codigo; x.multiBanco = false;
       AVISO(nuevo ? 'Examen creado · código ' + r.codigo : 'Cambios guardados');
@@ -980,6 +980,7 @@
 
   /** Una pregunta revisada (detalleIntento): enunciado, lo que respondió y la correcta. */
   function revQ(q) {
+    if (q.faltante) return '<div class="pq" style="border-left:5px solid var(--amarillo)"><b>' + q.n + '. ' + esc(q.enunciado) + '</b></div>';
     return '<div class="pq" style="border-left:5px solid ' + (q.pendiente ? 'var(--amarillo)' : q.bien ? 'var(--verde)' : q.obtenidos ? 'var(--amarillo)' : 'var(--rojo)') + '"><b style="white-space:pre-line">' + q.n + '. ' + esc(q.enunciado) + '</b>' +
       ' <span class="pildora">' + q.obtenidos + ' / ' + q.puntos + ' pt</span>' + (q.pendiente ? ' <span class="pildora amarillo">Por corregir</span>' : '') + '<div class="pequeno" style="margin-top:6px;white-space:pre-line">' +
       (q.bien ? '✔ ' + esc(q.tu) : (q.pendiente ? '✎ ' : '✘ ') + esc(q.tu || '(sin responder)') + ' · <span style="color:var(--verde)">' + (q.tipo === 'CORTA' ? 'Modelo: ' : 'Correcta: ') + esc(q.correcta) + '</span>') + '</div></div>';
