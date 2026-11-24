@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="es.css?v=4">
 <script src="config.js?v=3"></script>
 <script src="es.js?v=7"></script>
+<script src="tipos.js?v=1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 <style>
   .centro { min-height: 100vh; display: grid; place-items: center; padding: 20px 16px 90px; }
@@ -242,7 +243,8 @@
     var c = $('codigo').value.trim(); $('errCodigo').textContent = '';
     if (!c) { $('errCodigo').textContent = 'Escribe el código.'; return; }
     $('btnCodigo').disabled = true;
-    API({ action: 'abrir', codigo: c }).then(function (r) {
+    st.tipos = c.toUpperCase() === st.demoCod ? st.demoTipos : '';   /* filtro de tipos solo para la demo pedida en el enlace */
+    API({ action: 'abrir', codigo: c, tipos: st.tipos }).then(function (r) {
       st.ex = r.examen; st.r = r.examen.reglas || {}; st.codigo = c; st.desfase = r.ahora - Date.now();
       var ex = r.examen, R = st.r, prac = ex.modo === 'PRACTICA';
       $('dTitulo').textContent = ex.titulo;
@@ -271,7 +273,9 @@
   };
   $('codigo').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('btnCodigo').click(); });
   $('btnDemo').onclick = function () { $('codigo').value = 'DEMO'; $('btnCodigo').click(); };
-  if (/[?&]demo\b/.test(location.search)) $('btnDemo').click();
+  var qDemo = new URLSearchParams(location.search);   /* ?demo (general) o ?demo=DEMO-SEC-MAT&tipos=MC,HOTSPOT */
+  if (qDemo.has('demo')) { st.demoCod = /^DEMO[-A-Z]*$/i.test(qDemo.get('demo') || '') ? qDemo.get('demo').toUpperCase() : 'DEMO'; st.demoTipos = (qDemo.get('tipos') || '').replace(/[^A-Za-z_,]/g, '').slice(0, 400);
+    $('codigo').value = st.demoCod; $('btnCodigo').click(); }
   $('btnVolver').onclick = function () { ver('vCodigo'); };
   $('btnInicio').onclick = function () { ver('vCodigo'); };
 
@@ -295,7 +299,7 @@
       throw new Error(e.message === 'sin-api' ? 'Este equipo no permite pantalla completa. Usa Chrome o Edge en una laptop o Chromebook.' : 'No se pudo abrir la pantalla completa. Vuelve a intentarlo con Chrome o Edge.');
     });
     $('btnEmpezar').disabled = true;
-    pantalla.then(function (pc) { st.pc = !!pc; return API({ action: 'iniciar', codigo: st.codigo, nombre: nombre, pin: pin, navegador: navigator.userAgent }); })
+    pantalla.then(function (pc) { st.pc = !!pc; return API({ action: 'iniciar', codigo: st.codigo, nombre: nombre, pin: pin, tipos: st.tipos, navegador: navigator.userAgent }); })
       .then(function (r) { arrancar(r, nombre); })
       .catch(function (e) { $('errDatos').textContent = e.message; salirPantalla(); })
       .then(function () { $('btnEmpezar').disabled = false; });
@@ -323,15 +327,15 @@
         : q.opciones.map(function (o, j) {
           return '<label class="op' + (st.resp[i] === j ? ' sel' : '') + '" data-i="' + i + '" data-j="' + j + '"><input type="radio" name="q' + i + '" value="' + j + '"' + (st.resp[i] === j ? ' checked' : '') + '><span class="letra">' + String.fromCharCode(65 + j) + '</span><span>' + esc(o) + '</span></label>';
         }).join('');
-      return '<article class="pregunta vidrio" id="p' + i + '"><div class="cab"><span class="num">' + q.n + '</span><span class="suave pequeno">' + (TIPOS[q.tipo] || 'Selección') + '</span>' +
+      return '<article class="pregunta vidrio" id="p' + i + '"><div class="cab"><span class="num">' + q.n + '</span><span class="suave pequeno">' + (TIPOS[q.tipo] || (TX(q) && TX(q).nombre) || 'Selección') + '</span>' +
         '<span class="pts pildora">' + q.puntos + ' pt' + (q.puntos === 1 ? '' : 's') + '</span>' + (st.adelante ? '' : '<button type="button" class="marcar" data-m="' + i + '">' + ICO('bandera') + 'Revisar</button>') + '</div>' +
-        '<p class="enunciado">' + esc(q.tipo === 'COMPLETAR' ? 'Completa los espacios en blanco.' : q.tipo === 'PALABRAS' ? 'Completa con las palabras del banco.' : q.enunciado) + '</p>' + (q.media ? MEDIA(q.media) : '') + ia + cuerpo + '</article>';
+        '<p class="enunciado">' + esc(q.tipo === 'COMPLETAR' ? 'Completa los espacios en blanco.' : q.tipo === 'PALABRAS' ? 'Completa con las palabras del banco.' : (TX(q) && TX(q).enun) || q.enunciado) + '</p>' + (q.media && !(TX(q) && TX(q).propiaMedia) ? MEDIA(q.media) : '') + ia + cuerpo + '</article>';
     }).join('') + (st.unaPag ? '<div class="pag-nav">' + (st.adelante ? '<span></span>' : '<button type="button" class="btn claro" id="pAnt">' + ICO('atras') + ' Anterior</button>') +
       '<span class="cuenta" id="pCuenta"></span><button type="button" class="btn primario" id="pSig">Siguiente ' + ICO('adelante') + '</button></div>' : '');
     if (st.adelante) $('ePregs').insertAdjacentHTML('afterbegin', '<div class="aviso-adelante">' + ICO('alerta') + ' Solo hacia adelante: cuando pases a la siguiente pregunta no podrás volver.</div>');
     $('ePregs').classList.toggle('unapag', !!st.unaPag);
     $('eNumeros').innerHTML = st.preguntas.map(function (q, i) { return '<button type="button" data-ir="' + i + '">' + q.n + '</button>'; }).join('');
-    progreso(); activarArrastre(); if (st.unaPag) mostrarPag(); else lineas();
+    progreso(); activarArrastre(); if (window.TIPOSX) TIPOSX._listo($('ePregs')); if (st.unaPag) mostrarPag(); else lineas();
   }
   function mostrarPag() {
     var n = st.preguntas.length;
@@ -413,6 +417,7 @@
       return '<div class="completar' + (q.enunciado.indexOf('\n') >= 0 ? ' codigo' : '') + '">' + partes.map(function (seg, j) {
         return seg + (j < partes.length - 1 ? '<input class="hueco" data-i="' + i + '" data-j="' + j + '" autocomplete="off" spellcheck="false" aria-label="Espacio ' + (j + 1) + '" value="' + esc(h[j] || '') + '">' : ''); }).join('') + '</div>';
     }
+    if (TX(q)) return TIPOSX._cuerpo(q, i, r);   /* tipos de tipos.js: desplegable, matriz, crucigrama… */
     return '';
   }
   function activarArrastre() {
@@ -489,6 +494,10 @@
       if (x.v === null && !x.j) delete st.resp[i]; else st.resp[i] = x; cambio(); }
   });
   function cambio() { progreso(); clearTimeout(st.guardarT); st.guardarT = setTimeout(guardar, 1200); }
+  /* Puente para tipos.js: lee y guarda la respuesta de cada pregunta (v = null la borra) */
+  function TX(q) { return window.TIPOSX && window.TIPOSX[q.tipo]; }
+  window.TIPOSX_CTX = { resp: function (i) { return st.resp[i]; }, pregunta: function (i) { return st.preguntas && st.preguntas[i]; }, activo: function () { return !!st.activo; },
+    poner: function (i, v) { if (!st.activo) return; if (v === null || v === undefined) delete st.resp[i]; else st.resp[i] = v; cambio(); } };
   function progreso() {
     var r = Object.keys(st.resp).length, n = st.preguntas.length;
     $('eAvance').style.width = (n ? r / n * 100 : 0) + '%';

@@ -12,6 +12,10 @@
 <script src="es.js?v=7"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="ayudante.js?v=1" defer></script>
+<script src="prompts.js?v=1" defer></script>
+<script src="word.js?v=2" defer></script>
+<script src="tipos.js?v=1"></script>
+<script src="calif.js?v=1" defer></script>
 <style>
   /* Acceso */
   .acceso { min-height: 100vh; display: grid; place-items: center; padding: 20px 16px; }
@@ -258,11 +262,12 @@
       $('selCentro').innerHTML = opc.map(function (o) { return '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>'; }).join(''); $('selCentro').value = p.yo.centro + '|' + p.yo.rol;
       $('selCentro').classList.toggle('oculto', opc.length < 2);
       $('yoIni').textContent = p.yo.nombre.split(' ').map(function (x) { return x[0]; }).slice(0, 2).join('');
-      var items = [['inicio', 'inicio', 'Inicio'], ['examenes', 'examen', 'Exámenes'], ['banco', 'banco', 'Banco'], ['reportes', 'grafica', 'Reportes'], ['estudiantes', 'usuarios', 'Estudiantes']];
+      var items = [['inicio', 'inicio', 'Inicio'], ['examenes', 'examen', 'Exámenes'], ['banco', 'banco', 'Banco'], ['reportes', 'grafica', 'Reportes'], ['calificaciones', 'lista', 'Calificaciones'], ['estudiantes', 'usuarios', 'Estudiantes']];
       if (p.yo.rol === 'ADMIN') items.push(['docentes', 'docentes', 'Docentes']);
       if (p.yo.dueno) items.push(['membresias', 'premio', 'Membresías']);
       items.push(['ayuda', 'ayuda', 'Ayuda'], ['cuenta', 'cuenta', 'Mi cuenta']);
-      $('menu').innerHTML = items.map(function (x) { return '<button class="nav" data-ir="' + x[0] + '">' + ICO(x[1]) + '<span>' + x[2] + '</span></button>'; }).join('');
+      var pend = Number(p.yo.pendientes) || 0;
+      $('menu').innerHTML = items.map(function (x) { return '<button class="nav" data-ir="' + x[0] + '">' + ICO(x[1]) + '<span>' + x[2] + (x[0] === 'membresias' && pend ? ' <span class="pildora rojo" style="padding:0 7px;font-size:11px">' + pend + '</span>' : '') + '</span></button>'; }).join('');
       ir(S.vista === 'editor' || S.vista === 'resultados' ? 'inicio' : S.vista);
     }).catch(function (e) { if (e.sesion !== 'fin') $('pagina').innerHTML = '<div class="tarjeta"><b>No se pudo abrir el panel.</b><p class="suave">' + esc(e.message) + '</p></div>'; });
   }
@@ -276,7 +281,8 @@
   function ir(v, arg) {
     parar(); S.vista = v; window.scrollTo(0, 0); $('pagina').onclick = null;
     document.querySelectorAll('.nav').forEach(function (n) { n.classList.toggle('on', n.dataset.ir === v || (v === 'editor' || v === 'resultados') && n.dataset.ir === 'examenes'); });
-    ({ inicio: inicio, examenes: examenes, banco: banco, reportes: reportes, estudiantes: estudiantes, docentes: docentes, membresias: membresias, ayuda: ayuda, cuenta: cuenta, editor: editor, resultados: resultados })[v](arg);
+    ({ inicio: inicio, examenes: examenes, banco: banco, reportes: reportes, estudiantes: estudiantes, docentes: docentes, membresias: membresias, ayuda: ayuda, cuenta: cuenta, editor: editor, resultados: resultados,
+      calificaciones: function () { window.CALIF({ A: A, panel: S.panel, yo: S.yo, excel: bajarExcel, cabeza: cabeza, kpi: kpi, modal: modal, cerrarModal: cerrarModal }); } })[v](arg);   // libreta en calif.js
   }
 
   /* ---------- Excel y PDF (librerías bajo demanda) ---------- */
@@ -316,6 +322,8 @@
       doc.save(archivo(nombre) + '.pdf');
     }).catch(function (e) { AVISO(e.message, 'error'); });
   }
+  /** Quita las preguntas que no se pueden hacer en papel (avisa antes) y dibuja crucigramas, sopas, planos e imágenes con números. */
+  function papelListo(l) { return window.TIPOSX ? window.TIPOSX._papel(l) : Promise.resolve(l); }
   /** Versión en papel del examen con hoja de clave al final. */
   function bajarPapel(x, preguntas) {
     return libs().then(function () {
@@ -328,10 +336,18 @@
       cab(); y += 4; linea('Nombre: _____________________________________   Fecha: ___________   Nota: ______', 10.5); y += 6;
       if (x.instrucciones) linea(x.instrucciones, 10, false, 70);
       preguntas.forEach(function (q, i) {
-        y += 8; linea((i + 1) + '. ' + String(q.enunciado).replace(/\[\[(.+?)\]\]/g, '______________') + '   (' + (q.puntos || 1) + ' pt)', 11, true);
-        if (q.media) { var md = String(q.media), dk = md.indexOf(':'), src = md.slice(dk + 1);
+        var tx = window.TIPOSX && window.TIPOSX[q.tipo], pp = tx ? tx.impreso(q) : null;
+        y += 8; linea((i + 1) + '. ' + (pp && pp.enun ? pp.enun : String(q.enunciado)).replace(/\[\[(.+?)\]\]/g, '______________') + '   (' + (q.puntos || 1) + ' pt)', 11, true);
+        if (q.media && !(tx && tx.propiaMedia && q._pimg)) { var md = String(q.media), dk = md.indexOf(':'), src = md.slice(dk + 1);
           if (/^data:image\/(png|jpeg)/.test(src)) { try { var pr0 = doc.getImageProperties(src), iw = Math.min(260, pr0.width), ih = pr0.height * iw / pr0.width; if (y + ih > H - 50) { doc.addPage(); y = 50; } doc.addImage(src, m + 18, y, iw, ih); y += ih + 8; } catch (er) {} }
           else linea('      [' + md.slice(0, dk) + ' en la plataforma: ' + src + ']', 9, false, 110); }
+        if (tx) {
+          if (q._pimg) { try { var pi = doc.getImageProperties(q._pimg), ancho = Math.min(q.tipo === 'SOPA' || q.tipo === 'CRUCIGRAMA' ? 300 : 360, pi.width), alto = pi.height * ancho / pi.width; if (alto > H - 100) { alto = H - 100; ancho = pi.width * alto / pi.height; } if (y + alto > H - 50) { doc.addPage(); y = 50; } doc.addImage(q._pimg, 'PNG', m + 18, y, ancho, alto); y += alto + 8; } catch (er) {} }
+          var pdfT = function (t) { return String(t).replace(/☐/g, '[   ]').replace(/−/g, '-').replace(/→/g, '->'); };   /* la letra del PDF no tiene esos símbolos */
+          (pp.lineas || []).forEach(function (l) { linea('      ' + pdfT(l), 10.5); });
+          if (pp.tabla && pp.tabla.length) { pp.tabla = pp.tabla.map(function (fl) { return fl.map(pdfT); }); if (doc.autoTable) { doc.autoTable({ startY: y, head: [pp.tabla[0]], body: pp.tabla.slice(1), margin: { left: m + 18, right: m }, theme: 'grid', styles: { fontSize: 9.5, cellPadding: 4 }, headStyles: { fillColor: [232, 230, 251], textColor: 20 } }); y = doc.lastAutoTable.finalY + 8; } else pp.tabla.forEach(function (fl) { linea('      ' + fl.join('   |   '), 10); }); }
+          return;
+        }
         var mezcla = function (a) { a = a.slice(); for (var z = a.length - 1; z > 0; z--) { var w = Math.floor(Math.random() * (z + 1)), tmp = a[z]; a[z] = a[w]; a[w] = tmp; } return a; };
         if (q.tipo === 'CORTA') for (var k = 0; k < 3; k++) linea('_____________________________________________________________________________', 10, false, 160);
         else if (ORDEN_ED.indexOf(q.tipo) >= 0) { linea('      Numera del 1 al ' + q.opciones.length + ' en el orden correcto:', 10, false, 90); mezcla(q.opciones).forEach(function (o) { linea('      (     )  ' + o, 10.5); }); }
@@ -345,7 +361,7 @@
         else if (q.tipo !== 'COMPLETAR') q.opciones.forEach(function (o, j) { linea('      ' + String.fromCharCode(97 + j) + ')  ' + o, 10.5); });
       });
       doc.addPage(); y = 50; cab(); y += 6; linea('CLAVE DE RESPUESTAS (solo para el docente)', 12, true);
-      preguntas.forEach(function (q, i) { var j = (q.tipo === 'MC' || q.tipo === 'VF') ? q.opciones.indexOf(q.correcta) : -1; linea((i + 1) + '.  ' + (j >= 0 ? String.fromCharCode(97 + j) + ')  ' : '') + (q.tipo === 'CORTA' ? String(q.correcta).split('|').join(' / ') : claveTexto(q).replace(/\n/g, '   ')), 10.5); });
+      preguntas.forEach(function (q, i) { var j = (q.tipo === 'MC' || q.tipo === 'VF') ? q.opciones.indexOf(q.correcta) : -1; linea((i + 1) + '.  ' + (j >= 0 ? String.fromCharCode(97 + j) + ')  ' : '') + (q.tipo === 'CORTA' ? String(q.correcta).split('|').join(' / ') : claveTexto(q).replace(/\n/g, '   ').replace(/→/g, '->')), 10.5); });
       doc.save(archivo('Examen en papel ' + x.titulo) + '.pdf');
     }).catch(function (e) { AVISO(e.message, 'error'); });
   }
@@ -526,6 +542,8 @@
     RELACIONAR: 'Relacionar columnas', CLASIFICAR: 'Clasificar en grupos', COMPLETAR: 'Completar espacios', PALABRAS: 'Completar con banco de palabras', NUMERICA: 'Respuesta numérica' };
   var DINAMICAS = [['ORDENAR', 'Ordenar', 'barajar'], ['ALGORITMO', 'Algoritmo', 'lista'], ['FLUJO', 'Diagrama de flujo', 'grafica'], ['RELACIONAR', 'Relacionar', 'enlace'], ['CLASIFICAR', 'Clasificar', 'banco'], ['COMPLETAR', 'Completar', 'editar'], ['PALABRAS', 'Banco de palabras', 'libro'], ['NUMERICA', 'Numérica', 'check'], ['VFJ', 'V/F justificada', 'corregir']];
   var ORDEN_ED = ['ORDENAR', 'ALGORITMO', 'FLUJO'], AUTO = ORDEN_ED.concat(['RELACIONAR', 'CLASIFICAR', 'COMPLETAR', 'PALABRAS']), HUECOS_ED = ['COMPLETAR', 'PALABRAS'];
+  AUTO = AUTO.concat(Object.keys(window.TIPOSX || {}).filter(function (k) { return window.TIPOSX[k].codigo && window.TIPOSX[k].campos !== 'correcta' }))
+  Object.keys(window.TIPOSX || {}).forEach(function (k) { if (window.TIPOSX[k].codigo) TIPOS_ED[k] = window.TIPOSX[k].nombre })
   var AYUDA_ED = { ORDENAR: 'Un paso por línea, en el orden correcto (al estudiante le salen desordenados)', ALGORITMO: 'Una línea de pseudocódigo por renglón, en orden. Respeta la sangría con espacios',
     FLUJO: 'Un bloque por línea, de arriba hacia abajo. La forma sale sola: Inicio/Fin = óvalo; Leer/Escribir = entrada/salida; con «?» o «Si…» = decisión; lo demás = proceso',
     RELACIONAR: 'Una pareja por línea: izquierda = derecha', CLASIFICAR: 'Un grupo por línea: Grupo: elemento, elemento, elemento',
@@ -547,6 +565,7 @@
   function validarP(q, i) {
     var n = i + 1, ops = (q.opciones || []).filter(function (o) { return String(o).trim(); });
     if (!q.enunciado.trim()) return n + ' (sin texto)';
+    if (window.TIPOSX && window.TIPOSX[q.tipo]) { var ev = window.TIPOSX._validar(q); return ev ? n + ' (' + ev + ')' : null; }
     if (ORDEN_ED.indexOf(q.tipo) >= 0) return ops.length < 3 ? n + ' (necesita al menos 3 pasos)' : null;
     if (q.tipo === 'RELACIONAR' || q.tipo === 'CLASIFICAR') return ops.length < 2 ? n + ' (necesita al menos 2 parejas)' : null;
     if (HUECOS_ED.indexOf(q.tipo) >= 0) return /\[\[.+?\]\]/.test(q.enunciado) ? null : n + ' (marca los espacios con [[respuesta]])';
@@ -557,6 +576,7 @@
   /** Respuesta correcta en texto (vista previa del banco y clave en papel). */
   function claveTexto(q) {
     var o = q.opciones || [];
+    if (window.TIPOSX && window.TIPOSX[q.tipo]) return window.TIPOSX[q.tipo].clave(q);
     if (ORDEN_ED.indexOf(q.tipo) >= 0) return o.map(function (x, j) { return (j + 1) + '. ' + x; }).join('\n');
     if (q.tipo === 'RELACIONAR') return o.map(function (s) { return s.replace(' => ', ' → '); }).join('\n');
     if (q.tipo === 'CLASIFICAR') return lineasDe(q);
@@ -570,14 +590,15 @@
     var q = E.preguntas;
     $('edCuerpo').innerHTML = (E.ex.multiBanco ? '<div class="tarjeta" style="margin-bottom:12px"><b>' + ICO('alerta') + ' Este examen usa preguntas de varios bancos.</b><p class="suave" style="margin:4px 0 0">Si guardas aquí, las preguntas se copian a este examen.</p></div>' : '') +
       '<div class="filtros"><button class="btn claro" data-add="MC">' + ICO('mas') + ' Selección múltiple</button><button class="btn claro" data-add="VF">' + ICO('mas') + ' Verdadero o falso</button>' +
-      '<button class="btn claro" data-add="CORTA">' + ICO('mas') + ' Respuesta corta</button>' + DINAMICAS.map(function (d) { return '<button class="btn claro" data-add="' + d[0] + '">' + ICO(d[2]) + ' ' + d[1] + '</button>'; }).join('') + '<button class="btn primario" id="btnImportar">' + ICO('importar') + ' Pegar preguntas</button><button class="btn primario" id="btnIA">✨ Generar con IA</button>' +
+      '<button class="btn claro" data-add="CORTA">' + ICO('mas') + ' Respuesta corta</button>' + DINAMICAS.map(function (d) { return '<button class="btn claro" data-add="' + d[0] + '">' + ICO(d[2]) + ' ' + d[1] + '</button>'; }).join('') + '<select class="entrada mini" id="masTipos" style="width:auto"><option value="">+ Más tipos…</option>' + Object.keys(window.TIPOSX || {}).filter(function (k) { return window.TIPOSX[k].codigo; }).map(function (k) { return '<option value="' + k + '">' + esc(window.TIPOSX[k].nombre) + (window.TIPOSX[k].papel === 'NO' ? ' (sin papel)' : '') + '</option>'; }).join('') + '</select><button class="btn primario" id="btnImportar">' + ICO('importar') + ' Pegar preguntas</button><button class="btn primario" id="btnIA">✨ Generar con IA</button><button class="btn primario" id="btnPrompts">📋 Prompts listos</button>' +
       '<span class="suave pequeno" style="margin-left:auto">' + q.length + ' preguntas · ' + q.reduce(function (a, x) { return a + (Number(x.puntos) || 1); }, 0) + ' puntos</span></div>' +
       (q.length ? q.map(htmlPregunta).join('') : '<div class="tarjeta vacio"><div class="chip-ico">' + ICO('lista') + '</div><h3 style="justify-content:center">Sin preguntas todavía</h3><p>Agrega una a una o usa «Pegar preguntas» para cargar muchas de un golpe.</p></div>');
     var c = $('edCuerpo');
     c.onclick = function (e) {
-      var t = e.target.closest('[data-add],[data-del],[data-sube],[data-baja],[data-cor],[data-masop],[data-quitaop],[data-sinmedia],#btnImportar,#btnIA'); if (!t) return;
+      var t = e.target.closest('[data-add],[data-del],[data-sube],[data-baja],[data-cor],[data-masop],[data-quitaop],[data-sinmedia],#btnImportar,#btnIA,#btnPrompts'); if (!t) return;
       if (t.id === 'btnImportar') { leerPreguntas(); importar(); return; }
       if (t.id === 'btnIA') { leerPreguntas(); generarIA(); return; }
+      if (t.id === 'btnPrompts') { leerPreguntas(); if (window.ES_PROMPTS) window.ES_PROMPTS(); return; }
       leerPreguntas();
       if (t.dataset.add) { var tp = t.dataset.add; q.push({ tipo: tp, enunciado: '', opciones: tp === 'MC' ? ['', '', '', ''] : tp === 'VF' || tp === 'VFJ' ? ['Verdadero', 'Falso'] : [], correcta: tp === 'VF' || tp === 'VFJ' ? 'Verdadero' : AUTO.indexOf(tp) >= 0 ? 'auto' : '', puntos: 1, explicacion: '', tema: '' }); }
       var i = Number(t.dataset.del || t.dataset.sube || t.dataset.baja || t.dataset.masop || t.dataset.quitaop || (t.dataset.cor || '').split(':')[0]);
@@ -592,6 +613,7 @@
       if (t.dataset.add) { var ult = c.querySelectorAll('.preg-ed'); if (ult.length) ult[ult.length - 1].scrollIntoView({ behavior: 'smooth', block: 'center' }); }
     };
     c.onchange = function (e) {
+      if (e.target.id === 'masTipos') { var mt = e.target.value; if (!mt) return; leerPreguntas(); q.push({ tipo: mt, enunciado: '', opciones: [], correcta: AUTO.indexOf(mt) >= 0 ? 'auto' : '', puntos: 1, explicacion: '', tema: '' }); pasoPreguntas(); var ul = c.querySelectorAll('.preg-ed'); if (ul.length) ul[ul.length - 1].scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
       if (e.target.dataset.subir !== undefined) { var fl = e.target.files[0], si = Number(e.target.dataset.subir); if (!fl) return; leerPreguntas();
         comprimir(fl).then(function (d) { q[si].media = 'imagen:' + d; pasoPreguntas(); AVISO('Imagen agregada'); }).catch(function (er) { AVISO(er.message, 'error'); }); return; }
       if (e.target.dataset.f === 'mediaUrl') { var mu = e.target.value.trim(), ms = c.querySelector('[data-f="mediaTipo"][data-i="' + e.target.dataset.i + '"]');
@@ -605,6 +627,7 @@
   function htmlPregunta(x, i) {
     var cuerpo;
     if (x.tipo === 'CORTA') cuerpo = '<label class="campo"><span>Respuestas aceptadas (separa con |)</span><input class="entrada" data-f="correcta" data-i="' + i + '" value="' + esc(x.correcta) + '" placeholder="Ej.: Na|sodio"></label>';
+    else if (window.TIPOSX && window.TIPOSX[x.tipo]) cuerpo = window.TIPOSX._editor(x, i);
     else if (x.tipo === 'PALABRAS') cuerpo = '<p class="pequeno suave" style="margin:6px 0">' + AYUDA_ED.PALABRAS + '</p><textarea class="entrada" data-f="lineas" data-i="' + i + '" style="min-height:70px" placeholder="memoria&#10;procesador">' + esc((x.opciones || []).join('\n')) + '</textarea>';
     else if (AYUDA_ED[x.tipo] && x.tipo !== 'COMPLETAR' && x.tipo !== 'NUMERICA') cuerpo = '<label class="campo"><span>' + AYUDA_ED[x.tipo] + '</span><textarea class="entrada" data-f="lineas" data-i="' + i + '" style="min-height:130px' + (x.tipo === 'ALGORITMO' ? ';font-family:ui-monospace,Consolas,monospace;font-size:13.5px' : '') + '" placeholder="' + esc(EJEMPLO_ED[x.tipo]) + '">' + esc(lineasDe(x)) + '</textarea></label>';
     else if (x.tipo === 'COMPLETAR') cuerpo = '<p class="pequeno suave" style="margin:6px 0">' + AYUDA_ED.COMPLETAR + '</p>';
@@ -621,7 +644,7 @@
       '<label class="pequeno suave" style="display:flex;gap:6px;align-items:center">Puntos <input class="entrada mini" type="number" min="0.5" step="0.5" data-f="puntos" data-i="' + i + '" value="' + (x.puntos || 1) + '" style="width:76px"></label>' +
       '<span style="margin-left:auto;display:flex;gap:2px"><button class="btn fantasma icono" data-sube="' + i + '" title="Subir">' + ICO('arriba') + '</button><button class="btn fantasma icono" data-baja="' + i + '" title="Bajar">' + ICO('abajo') + '</button>' +
       '<button class="btn fantasma icono" data-del="' + i + '" title="Borrar" style="color:var(--rojo)">' + ICO('borrar') + '</button></span></div>' +
-      '<textarea class="entrada" data-f="enunciado" data-i="' + i + '" placeholder="' + (x.tipo === 'COMPLETAR' ? 'Ej.: Para mostrar datos se usa [[Escribir]] y para pedirlos [[Leer]].' : x.tipo === 'PALABRAS' ? 'Ej.: El [[teclado]] es de entrada y la [[impresora]] es de salida.' : 'Escribe la pregunta') + '" style="min-height:70px' + (x.tipo === 'COMPLETAR' ? ';font-family:ui-monospace,Consolas,monospace' : '') + '">' + esc(x.enunciado) + '</textarea>' + htmlMedia(x, i) + cuerpo +
+      '<textarea class="entrada" data-f="enunciado" data-i="' + i + '" placeholder="' + (window.TIPOSX && window.TIPOSX[x.tipo] ? esc(window.TIPOSX[x.tipo].ph || 'Escribe la pregunta o la instrucción') : x.tipo === 'COMPLETAR' ? 'Ej.: Para mostrar datos se usa [[Escribir]] y para pedirlos [[Leer]].' : x.tipo === 'PALABRAS' ? 'Ej.: El [[teclado]] es de entrada y la [[impresora]] es de salida.' : 'Escribe la pregunta') + '" style="min-height:70px' + (x.tipo === 'COMPLETAR' ? ';font-family:ui-monospace,Consolas,monospace' : '') + '">' + esc(x.enunciado) + '</textarea>' + htmlMedia(x, i) + cuerpo +
       '<div class="fila" style="margin-top:10px"><input class="entrada" data-f="explicacion" data-i="' + i + '" value="' + esc(x.explicacion || '') + '" placeholder="Explicación (se ve en prácticas, opcional)">' +
       '<input class="entrada" data-f="tema" data-i="' + i + '" value="' + esc(x.tema || '') + '" placeholder="Tema o criterio (opcional)"></div></div>';
   }
@@ -670,10 +693,11 @@
   /* Generar preguntas con IA (servidor: Gemini → Groq → OpenRouter). El docente elige tipos, dificultad y cuáles agregar. */
   var TIPOS_IA_ED = [['MC', 'Selección múltiple'], ['VF', 'Verdadero o falso'], ['VFJ', 'V/F justificada'], ['CORTA', 'Respuesta corta'], ['ORDENAR', 'Ordenar pasos'], ['ALGORITMO', 'Algoritmo'],
     ['FLUJO', 'Diagrama de flujo'], ['RELACIONAR', 'Relacionar'], ['CLASIFICAR', 'Clasificar'], ['COMPLETAR', 'Completar'], ['PALABRAS', 'Banco de palabras'], ['NUMERICA', 'Numérica']];
+  Object.keys(window.TIPOSX || {}).forEach(function (k) { if (window.TIPOSX[k].ia) TIPOS_IA_ED.push([k, window.TIPOSX[k].nombre]); });
   var IA = { tema: '', texto: '', dificultad: 'MEDIA', cantidad: 10, tipos: ['MC', 'VF', 'CORTA', 'COMPLETAR', 'RELACIONAR', 'ORDENAR'] };
   try { Object.assign(IA, JSON.parse(localStorage.getItem('es-ia') || '{}'), { texto: '' }); } catch (e) {}
   function generarIA() {
-    modal('<h2>✨ Generar preguntas con IA</h2><p class="suave pequeno">Escribe el tema o pega el texto de la clase. La IA crea las preguntas, tú eliges cuáles agregar y luego puedes editarlas. No escribas nombres de estudiantes ni datos personales.</p>' +
+    modal('<h2>✨ Generar preguntas con IA</h2><p class="suave pequeno">Escribe el tema o pega el texto de la clase. La IA crea las preguntas, tú eliges cuáles agregar y luego puedes editarlas. No escribas nombres de estudiantes ni datos personales.</p><p class="pequeno" id="iaQuedan"></p>' +
       '<label class="campo"><span>Tema</span><input class="entrada" id="iaTema" maxlength="300" placeholder="Ej.: Topologías de red y dispositivos" value="' + esc(IA.tema) + '"></label>' +
       '<label class="campo"><span>Texto base (opcional): las preguntas salen solo de este texto</span><textarea class="entrada" id="iaTexto" maxlength="15000" style="min-height:110px" placeholder="Pega aquí el contenido de la clase, un resumen o una lectura">' + esc(IA.texto) + '</textarea></label>' +
       '<div class="fila" style="align-items:end"><label class="campo"><span>Dificultad</span><div class="segmento" id="iaDif">' + [['FACIL', 'Fácil'], ['MEDIA', 'Media'], ['DIFICIL', 'Difícil'], ['MIXTA', 'Mixta']].map(function (x) {
@@ -686,7 +710,8 @@
     $('iaDif').onclick = function (e) { var b = e.target.closest('[data-d]'); if (!b) return; $('iaDif').querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); }); };
     var marcar = function (v) { $('iaTipos').querySelectorAll('input').forEach(function (x) { x.checked = v; }); };
     $('iaTodos').onclick = function () { marcar(true); }; $('iaNinguno').onclick = function () { marcar(false); };
-    var lista = [];
+    var lista = [], quedan = function (h) { var ip = S.panel.yo.iaPropia || {}; if (ip.gemini || ip.groq) { $('iaQuedan').innerHTML = '<span class="pildora verde">Usas tu propia clave de IA: sin el límite de la plataforma</span>'; return; } if (!h) return; S.panel.yo.iaHoy = h; $('iaQuedan').innerHTML = '<span class="pildora ' + (h.quedan ? 'verde' : 'rojo') + '">Te quedan ' + h.quedan + ' de ' + h.limite + ' hoy</span> <span class="suave">Con tu propia IA (Mi cuenta ▸ Conectar mi IA) no hay límite.</span>'; };
+    quedan(S.panel.yo.iaHoy);
     $('iaGen').onclick = function () {
       IA.tema = $('iaTema').value.trim(); IA.texto = $('iaTexto').value.trim(); IA.cantidad = Math.max(1, Math.min(30, Number($('iaCant').value) || 10));
       IA.dificultad = ($('iaDif').querySelector('.on') || {}).dataset ? $('iaDif').querySelector('.on').dataset.d : 'MEDIA';
@@ -698,8 +723,8 @@
       var b = this; b.disabled = true; b.textContent = 'Generando…'; $('iaAgregar').classList.add('oculto');
       $('iaRes').innerHTML = '<div class="cargando" style="padding:18px"><div class="girar"></div><p>La IA está creando ' + IA.cantidad + ' preguntas. Tarda de 5 a 60 segundos.</p></div>';
       A({ action: 'generarIA', tema: IA.tema, texto: IA.texto, tipos: IA.tipos, cantidad: IA.cantidad, dificultad: IA.dificultad, materia: E.ex.materia, curso: E.ex.curso }).then(function (r) {
-        lista = r.preguntas;
-        $('iaRes').innerHTML = '<p class="pequeno" style="margin:12px 0 6px"><b>' + lista.length + ' preguntas</b> · hechas con ' + esc(r.motor) + (r.descartadas ? ' · ' + r.descartadas + ' descartadas por venir mal formadas' : '') + '. Desmarca las que no quieras. <b>Revísalas antes de usarlas</b>: la IA puede equivocarse.</p>' +
+        lista = r.preguntas; quedan(r.iaHoy);
+        $('iaRes').innerHTML = '<p class="pequeno" style="margin:12px 0 6px"><b>' + lista.length + ' preguntas</b> · hechas con ' + esc(r.motor) + (r.descartadas ? ' · ' + r.descartadas + ' descartadas por venir mal formadas' : '') + (r.aviso ? ' · <span style="color:var(--amarillo)">' + esc(r.aviso) + ' Se usó la IA de la plataforma.</span>' : '') + '. Desmarca las que no quieras. <b>Revísalas antes de usarlas</b>: la IA puede equivocarse.</p>' +
           lista.map(function (q, i) {
             return '<label class="tarjeta" style="display:flex;gap:10px;padding:10px 12px;margin:0 0 6px;cursor:pointer"><input type="checkbox" data-ia="' + i + '" checked style="margin-top:4px">' +
               '<span style="min-width:0"><span class="pildora">' + esc(TIPOS_ED[q.tipo] || q.tipo) + '</span>' + (q.dificultad ? ' <span class="pildora ' + ({ facil: 'verde', media: 'amarillo', dificil: 'rojo' }[String(q.dificultad).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')] || '') + '">' + esc(q.dificultad) + '</span>' : '') +
@@ -730,6 +755,7 @@
     return txt.replace(/\r/g, '').split(/\n\s*\n/).map(function (b) { return b.replace(/^\s*\n|\s+$/g, ''); }).filter(function (b) { return b.trim(); }).map(function (b0, n) {
       var mm = b0.match(/^\s*(imagen|video|audio)\s*[:=]\s*(https:\/\/\S+)\s*$/im), q0 = analizar1(mm ? b0.replace(mm[0], '').replace(/^\s*\n/, '') : b0, n);
       if (mm) q0.media = mm[1].toLowerCase() + ':' + mm[2];
+      if (mm && window.TIPOSX && window.TIPOSX[q0.tipo]) { delete q0.error; var ev = validarP(q0, n); if (ev) q0.error = '#' + ev; }   /* zona, etiquetar y video se validan con su imagen o video */
       return q0;
     });
   }
@@ -760,6 +786,7 @@
   }
 
   function tipoDe(s) {
+    var tx = window.TIPOSX && window.TIPOSX._tipoDe(s); if (tx) return tx;
     s = String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     var m = [['pseudo', 'ALGORITMO'], ['algoritmo', 'ALGORITMO'], ['flujo', 'FLUJO'], ['diagrama', 'FLUJO'], ['ordenar', 'ORDENAR'], ['orden', 'ORDENAR'], ['relacion', 'RELACIONAR'], ['empareja', 'RELACIONAR'], ['aparea', 'RELACIONAR'], ['justific', 'VFJ'], ['palabra', 'PALABRAS'],
       ['clasific', 'CLASIFICAR'], ['complet', 'COMPLETAR'], ['numer', 'NUMERICA'], ['corta', 'CORTA'], ['verdadero', 'VF'], ['seleccion', 'MC']].find(function (x) { return s.indexOf(x[0]) >= 0; });
@@ -767,6 +794,7 @@
   }
   /** Bloque pegado de un tipo dinámico: «Tipo: …», la pregunta en la primera línea y los elementos debajo. */
   function analizarNuevo(b, tipo, n) {
+    if (window.TIPOSX && window.TIPOSX[tipo]) return window.TIPOSX._pegar(b, tipo, n);
     var q = { tipo: tipo, enunciado: '', opciones: [], correcta: AUTO.indexOf(tipo) >= 0 ? 'auto' : '', puntos: 1, explicacion: '', tema: '' }, cont = [], tol = '0';
     b.split('\n').forEach(function (l) {
       var m;
@@ -785,6 +813,10 @@
     var e = validarP(q, n); if (e) q.error = '#' + e;
     return q;
   }
+
+  /* Puente para prompts.js (Biblioteca de prompts y clave de IA propia) */
+  window.ES_PUENTE = { A: A, modal: modal, cerrar: cerrarModal, copiar: copiar, analizar: analizar, claveTexto: claveTexto, yo: function () { return S.panel && S.panel.yo; },
+    ex: function () { return E && E.ex; }, agregar: function (l) { l.forEach(function (q) { E.preguntas.push(q); }); pasoPreguntas(); } };
 
   /* Restricciones */
   function pasoReglas() {
@@ -814,14 +846,15 @@
     $('edCuerpo').innerHTML = '<div class="dos"><div class="tarjeta"><h3>' + ICO('llave') + ' Código</h3><div class="compartir-codigo">' + esc(x.codigo) + '</div>' +
       '<div class="filtros" style="margin-top:12px"><button class="btn claro" data-cp="' + esc(x.codigo) + '">' + ICO('copiar') + ' Copiar código</button><button class="btn claro" id="btnNuevoCod">' + ICO('recargar') + ' Cambiar código</button></div>' +
       '<h3 style="margin-top:14px">' + ICO('enlace') + ' Enlace directo</h3><input class="entrada" readonly value="' + esc(url) + '"><div class="filtros" style="margin-top:10px"><button class="btn claro" data-cp="' + esc(url) + '">' + ICO('copiar') + ' Copiar enlace</button>' +
-      '<button class="btn claro" id="btnTextoCl">' + ICO('copiar') + ' Copiar texto para Classroom</button><button class="btn claro" id="btnPapel">' + ICO('imprimir') + ' Versión en papel (PDF)</button></div>' +
+      '<button class="btn claro" id="btnTextoCl">' + ICO('copiar') + ' Copiar texto para Classroom</button><button class="btn claro" id="btnPapel">' + ICO('imprimir') + ' Versión en papel (PDF)</button><button class="btn claro" id="btnWord">' + ICO('descargar') + ' Descargar Word</button></div>' +
       '<p class="suave pequeno">' + (x.modo === 'EXAMEN' ? 'Consejo: en un examen, da el código en el aula y publica el enlace sin el código.' : 'En una práctica puedes publicar el enlace completo en Classroom.') + '</p></div>' +
       '<div class="tarjeta" style="text-align:center"><h3 style="justify-content:center">' + ICO('qr') + ' Código QR</h3><div id="qr"></div><p class="suave pequeno">Proyéctalo en el aula: lo escanean con la cámara.</p><button class="btn claro" id="btnQrGrande">' + ICO('pantalla') + ' Mostrar en grande</button></div></div>';
     try { new QRCode($('qr'), { text: url, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M }); } catch (e) { $('qr').textContent = 'QR no disponible'; }
     $('edCuerpo').onclick = function (e) { var b = e.target.closest('[data-cp]'); if (b) copiar(b.dataset.cp); };
     $('btnNuevoCod').onclick = function () { confirmar('¿Cambiar el código?', 'El código anterior dejará de funcionar.', 'Cambiar', function () { A({ action: 'nuevoCodigo', id: x.id }).then(function (r) { x.codigo = r.codigo; AVISO('Código nuevo: ' + r.codigo); pasoCompartir(); refrescarPanel(); }).catch(function (er) { AVISO(er.message, 'error'); }); }); };
     $('btnTextoCl').onclick = function () { copiar('📝 ' + x.titulo + '\n\n1️⃣ Abre: ' + (x.modo === 'EXAMEN' ? WEB : url) + '\n2️⃣ ' + (x.modo === 'EXAMEN' ? 'Escribe el código que te daré en clase.' : 'El código ya viene en el enlace: ' + x.codigo) + '\n3️⃣ Elige tu nombre y responde.\n\n' + (x.minutos ? '⏱️ Tienes ' + x.minutos + ' minutos. ' : '') + (E.ex.reglas.pantallaCompleta ? 'Se abre en pantalla completa; si sales de la ventana se entrega solo.' : '')); };
-    $('btnPapel').onclick = function () { AVISO('Preparando el PDF…'); bajarPapel(x, E.preguntas); };
+    $('btnPapel').onclick = function () { leerPreguntas(); papelListo(E.preguntas).then(function (l) { if (l) { AVISO('Preparando el PDF…'); bajarPapel(x, l); } }); };
+    $('btnWord').onclick = function () { leerPreguntas(); papelListo(E.preguntas).then(function (l) { if (l) bajarWord(x, l, (S.yo && S.yo.centroNombre) || ''); }); };
     $('btnQrGrande').onclick = function () { modal('<div style="text-align:center"><h1>' + esc(x.codigo) + '</h1><div id="qrG" style="display:grid;place-items:center;background:#fff;padding:18px;border-radius:18px;width:max-content;margin:12px auto"></div><p class="suave">' + esc(WEB) + '</p><button class="btn claro" data-cerrar>Cerrar</button></div>', true);
       try { new QRCode($('qrG'), { text: url, width: 360, height: 360 }); } catch (e) {} };
   }
@@ -1226,18 +1259,57 @@
   }
 
   /* ---------- Membresías (solo la cuenta dueña, instalación de venta) ---------- */
+  var PLAN_NOM = { prueba: 'Prueba gratis', docente_mensual: 'Docente mensual', docente_anual: 'Docente anual', centro: 'Plan Centro' };
+  function nomPlan(k, pl) { return (PLAN_NOM[k] || k) + (pl && pl.docentes ? ' (hasta ' + pl.docentes + ' docentes)' : ''); }
+  var SOL_EST = 'PENDIENTE';
+  function solicitudesHtml(r) {
+    var fc = function (x) { return x ? String(x).slice(0, 10).split('-').reverse().join('/') : '—'; };
+    return '<div class="tarjeta" style="margin-bottom:14px"><h3>' + ICO('reloj') + ' Pendientes por verificar <span class="pildora ' + (r.pendientes ? 'rojo' : 'verde') + '">' + r.pendientes + '</span></h3>' +
+      '<div class="segmento" id="solFil" style="margin-bottom:10px;flex-wrap:wrap">' + [['PENDIENTE', 'Pendientes'], ['APROBADA', 'Aprobadas'], ['RECHAZADA', 'Rechazadas'], ['AUTO', 'Pruebas']].map(function (x) {
+        return '<button type="button" data-solest="' + x[0] + '"' + (SOL_EST === x[0] ? ' class="on"' : '') + '>' + x[1] + '</button>'; }).join('') + '</div>' +
+      (r.solicitudes.length ? '<div>' + r.solicitudes.map(function (x) {
+        return '<div class="tarjeta" style="margin:0 0 8px;padding:12px"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>' + esc(x.codigo) + '</b><span class="tenue pequeno">' + fc(x.creado) + '</span></div>' +
+          '<div>' + esc(x.nombre) + ' <span class="tenue pequeno">' + esc(x.usuario) + '</span></div><div class="pequeno suave">' + esc(x.contacto || '—') + (x.centro ? ' · ' + esc(x.centro) : '') + '</div>' +
+          '<div class="pequeno" style="margin:4px 0">' + esc(nomPlan(x.plan)) + (x.monto ? ' · <b>' + esc(x.monto + ' ' + x.moneda) + '</b>' : '') + (x.meses ? ' · ' + x.meses + ' mes' + (x.meses > 1 ? 'es' : '') : '') + ' · vence ' + fc(x.vence) + '</div>' +
+          (x.nota ? '<div class="tenue pequeno">' + esc(x.nota) + '</div>' : '') + (x.revisado ? '<div class="tenue pequeno">Revisado ' + fc(x.revisado) + ' por ' + esc(x.revisadoPor) + '</div>' : '') +
+          (x.estado === 'PENDIENTE' ? '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn primario mini" data-sap="' + esc(x.id) + '">' + ICO('check') + ' Aprobar</button><button class="btn fantasma mini" data-srech="' + esc(x.id) + '" style="color:var(--rojo)">Rechazar</button></div>' : '') + '</div>';
+      }).join('') + '</div>' : '<p class="suave">No hay solicitudes en esta lista.</p>') + '</div>';
+  }
+  function aprobarSolicitud(x) {
+    modal('<h2>' + ICO('check') + ' Aprobar ' + esc(x.codigo) + '</h2><p class="suave pequeno">Confirma que la transferencia de <b>' + esc(x.nombre) + '</b> llegó. Se registra el pago y se alarga su acceso' + (x.plan === 'centro' ? ' (Plan Centro: se crea su centro y cubre a sus docentes)' : '') + '.</p>' +
+      '<div class="fila"><label class="campo"><span>Monto (' + esc(x.moneda || '') + ')</span><input class="entrada" id="saMonto" type="number" min="0" step="0.01" inputmode="decimal" value="' + esc(x.monto) + '"></label>' +
+      '<label class="campo"><span>Meses</span><input class="entrada" id="saMeses" type="number" min="1" max="36" inputmode="numeric" value="' + esc(x.meses || 1) + '"></label></div>' +
+      '<label class="campo"><span>Método</span><select class="entrada" id="saMetodo"><option>Transferencia</option><option>Depósito</option><option>Efectivo</option><option>Tarjeta</option><option>PayPal</option><option>Otro</option></select></label>' +
+      '<label class="campo"><span>Nota</span><input class="entrada" id="saNota" maxlength="200" placeholder="Referencia del banco…"></label><div class="error" id="saError"></div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn claro" data-cerrar>Cancelar</button><button class="btn primario" id="saOk">Aprobar</button></div>');
+    $('saOk').onclick = function () {
+      var b = this; b.disabled = true;
+      A({ action: 'solicitudAprobar', id: x.id, monto: $('saMonto').value === '' ? '' : Number($('saMonto').value), meses: Number($('saMeses').value), metodo: $('saMetodo').value, nota: $('saNota').value })
+        .then(function (r) { cerrarModal(); AVISO('Aprobada · vence el ' + String(r.vence).split('-').reverse().join('/')); refrescarPanel().then(function () { ir('membresias'); }); })
+        .catch(function (er) { $('saError').textContent = er.message; b.disabled = false; });
+    };
+  }
+  function rechazarSolicitud(x) {
+    modal('<h2>Rechazar ' + esc(x.codigo) + '</h2><label class="campo"><span>Motivo</span><input class="entrada" id="srMotivo" maxlength="200" placeholder="Ej.: no llegó la transferencia"></label><div class="error" id="srError"></div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn claro" data-cerrar>Cancelar</button><button class="btn peligro" id="srOk">Rechazar</button></div>');
+    $('srOk').onclick = function () {
+      A({ action: 'solicitudRechazar', id: x.id, motivo: $('srMotivo').value }).then(function () { cerrarModal(); AVISO('Solicitud rechazada'); refrescarPanel().then(function () { ir('membresias'); }); })
+        .catch(function (er) { $('srError').textContent = er.message; });
+    };
+  }
   function membresias() {
     cargando('Cargando membresías…');
-    A({ action: 'membresiasListar' }).then(function (r) {
+    Promise.all([A({ action: 'membresiasListar' }), A({ action: 'solicitudesListar', estado: SOL_EST })]).then(function (rr) {
+      var r = rr[0], sol = rr[1];
       if (S.vista !== 'membresias') return;
       var fc = function (x) { return x ? String(x).slice(0, 10).split('-').reverse().join('/') : '—'; }, nom = {};
       r.docentes.forEach(function (d) { nom[d.id] = d.nombre; });
       var conAcceso = r.docentes.filter(function (d) { return d.dueno || !d.vencida; }).length;
-      $('pagina').innerHTML = cabeza('Membresías', conAcceso + ' con acceso · ' + (r.docentes.length - conAcceso) + ' vencidas') +
+      $('pagina').innerHTML = cabeza('Membresías', conAcceso + ' con acceso · ' + (r.docentes.length - conAcceso) + ' vencidas') + solicitudesHtml(sol) +
         '<div class="dos"><div class="tarjeta desliza"><h3>' + ICO('usuarios') + ' Docentes</h3><table class="tabla"><thead><tr><th>Docente</th><th>Plan</th><th>Vence</th><th>Días</th><th>Pagado</th><th></th></tr></thead><tbody>' +
         r.docentes.map(function (d) {
           var col = d.dueno ? 'morado' : d.vencida ? 'rojo' : d.dias <= 5 ? 'amarillo' : 'verde';
-          return '<tr style="' + (d.activo ? '' : 'opacity:.5') + '"><td><b>' + esc(d.nombre) + '</b><div class="tenue pequeno">' + esc(d.usuario) + '</div></td><td>' + (d.dueno ? 'Dueño' : esc(d.plan)) + '</td>' +
+          return '<tr style="' + (d.activo ? '' : 'opacity:.5') + '"><td><b>' + esc(d.nombre) + '</b><div class="tenue pequeno">' + esc(d.usuario) + '</div></td><td>' + (d.dueno ? 'Dueño' : esc(d.plan)) + (d.centro ? '<div class="tenue pequeno">' + esc(d.centro) + '</div>' : '') + '</td>' +
             '<td style="white-space:nowrap">' + (d.dueno ? '—' : fc(d.vence)) + '</td><td><span class="pildora ' + col + '">' + (d.dueno ? 'Sin límite' : d.vencida ? 'Vencida' : d.dias + ' d') + '</span></td>' +
             '<td style="white-space:nowrap">' + (d.total ? esc(d.total + ' ' + d.moneda) : '—') + '</td><td>' + (d.dueno ? '' : '<button class="btn fantasma mini" data-pagar="' + esc(d.id) + '">' + ICO('mas') + ' Pago</button>') + '</td></tr>';
         }).join('') + '</tbody></table></div>' +
@@ -1264,6 +1336,10 @@
           .then(function (x) { AVISO('Pago registrado · vence el ' + fc(x.vence)); membresias(); }).catch(function (er) { AVISO(er.message, 'error'); b.disabled = false; });
       };
       $('pagina').onclick = function (e) {
+        var f = e.target.closest('[data-solest]'); if (f) { SOL_EST = f.dataset.solest; membresias(); return; }
+        var porId = function (id) { return sol.solicitudes.filter(function (x) { return x.id === id; })[0]; };
+        var sa = e.target.closest('[data-sap]'); if (sa) { aprobarSolicitud(porId(sa.dataset.sap)); return; }
+        var sr = e.target.closest('[data-srech]'); if (sr) { rechazarSolicitud(porId(sr.dataset.srech)); return; }
         var p = e.target.closest('[data-pagar]'); if (p) { $('mbDoc').value = p.dataset.pagar; $('mbForm').scrollIntoView({ behavior: 'smooth' }); $('mbMonto').focus(); return; }
         var a = e.target.closest('[data-anula]'); if (a) confirmar('¿Anular este pago?', 'Se descuenta su tiempo. El registro queda tachado en la lista.', 'Anular', function () { A({ action: 'membresiaAnular', id: a.dataset.anula }).then(function () { AVISO('Pago anulado'); membresias(); }).catch(function (er) { AVISO(er.message, 'error'); }); }, true);
       };
@@ -1287,7 +1363,32 @@
       A({ action: 'cambiarClave', actual: $('cActual').value, clave: $('cNueva').value }).then(function () { AVISO('Contraseña cambiada'); e.target.reset(); }).catch(function (er) { $('cError').textContent = er.message; });
     };
     misCentros();
+    renovarPlan();
     conectarIA();
+    if (window.ES_CLAVE_IA) window.ES_CLAVE_IA($('pagina'));
+  }
+
+  /* ---------- Renovar o cambiar de plan (instalación de venta) ---------- */
+  function renovarPlan() {
+    var y = S.panel.yo; if (!y.venta || y.dueno || !y.planes) return;
+    var pagos = Object.keys(y.planes).filter(function (k) { var pl = y.planes[k] || {}; return Number(pl.meses) || Number(pl.monto); });
+    if (!pagos.length) return;
+    var caja = document.createElement('div'); caja.className = 'tarjeta'; caja.style.marginTop = '14px';
+    caja.innerHTML = '<h3>' + ICO('premio') + ' Renovar o cambiar de plan</h3><label class="campo"><span>Plan</span><select class="entrada" id="rpPlan">' + pagos.map(function (k) {
+      var pl = y.planes[k]; return '<option value="' + esc(k) + '">' + esc(nomPlan(k, pl) + ' · ' + pl.monto + ' ' + (pl.moneda || 'DOP') + (pl.meses ? ' / ' + pl.meses + ' mes' + (pl.meses > 1 ? 'es' : '') : '')) + '</option>'; }).join('') + '</select></label>' +
+      '<div class="error" id="rpError"></div><button class="btn primario" id="rpOk">Solicitar</button><div id="rpRes"></div>';
+    $('pagina').appendChild(caja);
+    $('rpOk').onclick = function () {
+      var b = this; b.disabled = true; $('rpError').textContent = '';
+      A({ action: 'solicitarPago', plan: $('rpPlan').value }).then(function (r) {
+        var P = window.PAGO;
+        $('rpRes').innerHTML = '<div class="tarjeta" style="margin-top:12px;border-left:5px solid var(--verde)"><p style="margin:0">Tu código de solicitud: <b style="font-size:20px">' + esc(r.codigo) + '</b> <button type="button" class="btn fantasma mini" id="rpCopiar">' + ICO('copiar') + ' Copiar</button></p>' +
+          '<p class="suave pequeno">Monto: <b>' + esc(r.monto + ' ' + r.moneda) + '</b>. Escribe el código y tu nombre en la nota de la transferencia. Cuando la verifiquemos, tu acceso se alarga solo.</p>' +
+          (P && typeof P === 'object' ? '<p class="pequeno" style="margin:0">' + [['Banco', P.banco], ['Tipo', P.tipo], ['Cuenta', P.cuenta], ['Titular', P.titular]].filter(function (x) { return x[1]; }).map(function (x) { return esc(x[0]) + ': <b>' + esc(x[1]) + '</b>'; }).join('<br>') +
+            (P.instrucciones ? '<br><span class="suave">' + esc(P.instrucciones) + '</span>' : '') + '</p>' : '') + '</div>';
+        $('rpCopiar').onclick = function () { copiar(r.codigo); };
+      }).catch(function (er) { $('rpError').textContent = er.message; }).then(function () { b.disabled = false; });
+    };
   }
 
   /* ---------- Mis centros (escuela, liceo, universidad…) ---------- */

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="800" height="600">
+  <defs><clipPath id="b"><ellipse cx="200" cy="130" rx="160" ry="100"/></clipPath></defs>
+  <rect width="400" height="300" fill="#F4F6FB"/>
+  <rect x="240" y="200" width="26" height="90" rx="8" fill="#A8A29E"/>
+  <g clip-path="url(#b)" stroke="#FFFFFF" stroke-width="3">
+    <polygon points="0,0 175,0 160,140 90,155 0,160" fill="#93C5FD"/>
+    <polygon points="175,0 300,0 290,150 235,125 160,140" fill="#86EFAC"/>
+    <polygon points="300,0 400,0 400,300 290,300 290,150" fill="#FDE68A"/>
+    <polygon points="0,160 90,155 160,140 235,125 290,150 290,300 0,300" fill="#F9A8D4"/>
+  </g>
+  <ellipse cx="300" cy="228" rx="50" ry="28" fill="#C4B5FD" stroke="#FFFFFF" stroke-width="3"/>
+  <ellipse cx="200" cy="130" rx="160" ry="100" fill="none" stroke="#475569" stroke-width="2"/>
+</svg>
