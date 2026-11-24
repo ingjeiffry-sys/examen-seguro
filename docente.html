@@ -15,7 +15,7 @@
 <script src="prompts.js?v=1" defer></script>
 <script src="word.js?v=2" defer></script>
 <script src="tipos.js?v=1"></script>
-<script src="calif.js?v=1" defer></script>
+<script src="calif.js?v=2" defer></script>
 <style>
   /* Acceso */
   .acceso { min-height: 100vh; display: grid; place-items: center; padding: 20px 16px; }
@@ -116,6 +116,8 @@
   .corr .pts button { min-width: 42px; height: 38px; border-radius: 12px; border: 1px solid var(--linea); background: var(--sup-solida); font-weight: 800; cursor: pointer; color: var(--texto); }
   .corr .pts button.on { background: var(--acento); border-color: var(--acento); color: #fff; }
   .corr .pts input { width: 70px; padding: 8px; border-radius: 12px; border: 1px solid var(--linea); background: var(--sup-solida); color: var(--texto); font-weight: 700; }
+  .corr-cab { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .corr-hechas summary { cursor: pointer; padding: 6px 0; }
   @media (max-width: 640px) { .corr { grid-template-columns: 1fr; } }
   /* Banco y reportes */
   .examen-t.tecnico .franja { background: linear-gradient(90deg, #0EA5E9, #6366F1); } .examen-t.academico .franja { background: linear-gradient(90deg, #F59E0B, #EC4899); }
@@ -879,8 +881,9 @@
   /* ---------- Resultados ---------- */
   var R = null;
   function resultados(id) {
-    cargando('Calculando resultados…'); S.resTab = 'est';
+    cargando('Calculando resultados…'); S.resTab = 'est'; S.corrSucio = false;
     var cargar = function (silencioso) {
+      if (silencioso && S.corrSucio) return Promise.resolve();   // «Ver en vivo» no borra lo que el docente está corrigiendo
       return A({ action: 'resultados', id: id }).then(function (r) { R = r; pintarResultados(id); }).catch(function (e) { if (!silencioso) { AVISO(e.message, 'error'); ir('examenes'); } });
     };
     cargar();
@@ -1006,42 +1009,62 @@
       .catch(function (er) { if ($('resCuerpo')) $('resCuerpo').innerHTML = '<p class="error">' + esc(er.message) + '</p>'; });
   }
 
-  /* Corrección manual de respuestas cortas: pregunta por pregunta, todo el curso */
+  /* Corrección manual: pregunta por pregunta, todo el curso. Lo pendiente arriba; al guardar se recarga la lista y salta a la siguiente sin corregir. */
   function pintarCorregir() {
     $('resCuerpo').innerHTML = '<div id="corrCaja"><div class="girar" style="margin:30px auto"></div></div>'; var c0 = $('corrCaja');
     A({ action: 'porCorregir', id: R.examen.id }).then(function (c) {
-      if (!c.preguntas.length) { c0.innerHTML = '<div class="tarjeta vacio"><div class="chip-ico verde">' + ICO('check') + '</div><h3 style="justify-content:center">Nada que corregir</h3><p>Este examen no tiene respuestas cortas entregadas.</p></div>'; return; }
-      var cambios = {};
+      S.corrSucio = false;
+      if (!c.preguntas.length) { c0.innerHTML = '<div class="tarjeta vacio"><div class="chip-ico verde">' + ICO('check') + '</div><h3 style="justify-content:center">Nada que corregir</h3><p>Las respuestas cortas que coinciden con la respuesta modelo se califican solas.</p></div>'; return; }
+      var cambios = {}, total = 0;
       var fmt = function (p) { return String(Math.round(p * 100) / 100).replace('.', ','); };
-      c0.innerHTML = '<p class="suave pequeno">Corrige una pregunta a la vez para todo el curso. La respuesta modelo es solo una guía: tú decides los puntos (0, la mitad, todo o el número que quieras). Las amarillas aún no las has corregido.</p>' +
-        c.preguntas.map(function (g) {
-          return '<div class="tarjeta" style="margin-bottom:14px"><b style="white-space:pre-line">' + esc(g.enunciado) + '</b><div class="pequeno" style="margin:6px 0 12px;color:var(--verde)">' + ICO('check') + ' Respuesta modelo: ' + esc(g.correcta) + ' · vale ' + fmt(g.puntos) + ' pt</div>' +
-            g.respuestas.map(function (r) {
-              var v = r.puntos;
-              return '<div class="corr' + (v === null ? ' pend' : '') + '" data-key="' + r.intento + ':' + r.k + '" data-max="' + g.puntos + '"><div class="txt"><span class="pequeno suave">' + esc(r.nombre) + (r.sugerido ? ' · coincide con el modelo' : '') + '</span><div>' + esc(r.texto) + '</div></div>' +
-                '<div class="pts">' + [0, g.puntos / 2, g.puntos].map(function (p) { return '<button type="button" data-p="' + p + '" class="' + (v === p ? 'on' : '') + '">' + fmt(p) + '</button>'; }).join('') +
-                '<input type="number" min="0" max="' + g.puntos + '" step="0.25" value="' + (v === null ? '' : v) + '" aria-label="Puntos"></div></div>';
-            }).join('') + '</div>';
+      var fila = function (g, r) {
+        var v = r.puntos;
+        return '<div class="corr' + (v === null ? ' pend' : '') + '" data-key="' + r.intento + ':' + r.k + '" data-max="' + g.puntos + '" data-sug="' + (Number(r.sugerido) || 0) + '"><div class="txt"><span class="pequeno suave">' + esc(r.nombre) + r.vez +
+          ' · sugerido ' + fmt(Number(r.sugerido) || 0) + ' pt</span><div>' + esc(r.texto) + '</div></div>' +
+          '<div class="pts">' + [0, g.puntos / 2, g.puntos].map(function (p) { return '<button type="button" data-p="' + p + '" class="' + (v === p ? 'on' : '') + '">' + fmt(p) + '</button>'; }).join('') +
+          '<input type="number" min="0" max="' + g.puntos + '" step="0.25" value="' + (v === null ? '' : v) + '" aria-label="Puntos de ' + esc(r.nombre) + '"></div></div>';
+      };
+      c0.innerHTML = '<p class="suave pequeno">Cada pregunta con todo el curso. Toca 0, la mitad o todo (o escribe el número) y pasa sola a la siguiente; luego <b>Guardar y seguir</b>. «Aceptar todas las sugerencias» guarda la sugerencia en las que aún no tocaste.</p>' +
+        c.preguntas.map(function (g, gi) {
+          var veces = {}, vistos = {};
+          g.respuestas.forEach(function (r) { veces[r.nombre] = (veces[r.nombre] || 0) + 1; });
+          g.respuestas.forEach(function (r) { r.vez = veces[r.nombre] > 1 ? ' · intento ' + (vistos[r.nombre] = (vistos[r.nombre] || 0) + 1) : ''; });
+          var pend = g.respuestas.filter(function (r) { return r.puntos === null; }), hechas = g.respuestas.filter(function (r) { return r.puntos !== null; });
+          total += g.respuestas.length;
+          return '<div class="tarjeta corr-preg" style="margin-bottom:14px"><b style="white-space:pre-line">' + esc(g.enunciado) + '</b><div class="pequeno" style="margin:6px 0 10px;color:var(--verde)">' + ICO('check') + ' Respuesta modelo: ' + esc(g.correcta) + ' · vale ' + fmt(g.puntos) + ' pt</div>' +
+            '<div class="corr-cab">' + (pend.length ? '<span class="pildora amarillo">' + pend.length + ' por corregir</span><button type="button" class="btn claro mini" data-aceptar="' + gi + '">' + ICO('check') + ' Aceptar todas las sugerencias</button>' : '<span class="pildora verde">' + ICO('check') + ' Todo corregido</span>') + '</div>' +
+            pend.map(function (r) { return fila(g, r); }).join('') +
+            (hechas.length ? '<details class="corr-hechas"' + (pend.length ? '' : ' open') + '><summary class="pequeno suave">Ya corregidas (' + hechas.length + ')</summary>' + hechas.map(function (r) { return fila(g, r); }).join('') + '</details>' : '') + '</div>';
         }).join('') +
-        '<div class="guardar-fijo vidrio"><span class="suave pequeno" id="corrEstado" style="margin-right:auto">' + c.pendientes + ' sin corregir</span><button class="btn primario" id="corrGuardar" disabled>' + ICO('check') + ' Guardar correcciones</button></div>';
-      var marcar = function (fila, val) {
-        var max = Number(fila.dataset.max); val = val === '' ? '' : Math.max(0, Math.min(max, Number(val)));
-        cambios[fila.dataset.key] = val; fila.querySelector('input').value = val;
-        fila.querySelectorAll('[data-p]').forEach(function (b) { b.classList.toggle('on', val !== '' && Number(b.dataset.p) === val); });
-        fila.classList.toggle('pend', val === '');
-        $('corrGuardar').disabled = false; $('corrEstado').textContent = Object.keys(cambios).length + ' cambio(s) sin guardar';
+        '<div class="guardar-fijo vidrio"><span class="suave pequeno" id="corrEstado" style="margin-right:auto"></span><button class="btn primario" id="corrGuardar" disabled>' + ICO('check') + ' Guardar y seguir</button></div>';
+      var estado = function () { var n = Object.keys(cambios).length; $('corrEstado').textContent = (total - c.pendientes) + ' de ' + total + ' corregidas' + (n ? ' · ' + n + ' sin guardar' : ''); $('corrGuardar').disabled = !n; S.corrSucio = !!n; };
+      var marcar = function (f, val) {
+        var max = Number(f.dataset.max); val = val === '' ? '' : Math.max(0, Math.min(max, Number(val)));
+        cambios[f.dataset.key] = val; f.querySelector('input').value = val;
+        f.querySelectorAll('[data-p]').forEach(function (b) { b.classList.toggle('on', val !== '' && Number(b.dataset.p) === val); });
+        f.classList.toggle('pend', val === ''); estado();
       };
-      c0.onclick = function (e) { var b = e.target.closest('[data-p]'); if (b) marcar(b.closest('.corr'), Number(b.dataset.p)); };
-      c0.onchange = function (e) { if (e.target.matches('.corr input')) marcar(e.target.closest('.corr'), e.target.value); };
-      $('corrGuardar').onclick = function () {
+      var guardar = function () {
         var lista = Object.keys(cambios).map(function (k) { var p = k.split(':'); return { intento: p[0], k: Number(p[1]), puntos: cambios[k] === '' ? null : cambios[k] }; });
-        this.disabled = true; $('corrEstado').textContent = 'Guardando…';
-        A({ action: 'corregir', lista: lista }).then(function () { AVISO('Correcciones guardadas y notas recalculadas'); S.recargar(); })
-          .catch(function (er) { AVISO(er.message, 'error'); $('corrGuardar').disabled = false; });
+        if (!lista.length) return;
+        $('corrGuardar').disabled = true; $('corrEstado').textContent = 'Guardando…';
+        A({ action: 'corregir', lista: lista }).then(function () { AVISO(lista.length + ' guardada(s) · notas recalculadas'); S.corrSucio = false; S.corrSeguir = true; S.recargar(true); })
+          .catch(function (er) { AVISO(er.message, 'error'); estado(); });
       };
+      c0.onclick = function (e) {
+        var b = e.target.closest('[data-p]');
+        if (b) { var f = b.closest('.corr'); marcar(f, Number(b.dataset.p));
+          var sig = Array.prototype.filter.call(c0.querySelectorAll('.corr.pend'), function (x) { return !(x.dataset.key in cambios) && (f.compareDocumentPosition(x) & 4); })[0];
+          if (sig) sig.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+        var a = e.target.closest('[data-aceptar]');
+        if (a) { a.closest('.corr-preg').querySelectorAll('.corr.pend').forEach(function (f) { if (!(f.dataset.key in cambios)) marcar(f, Number(f.dataset.sug)); }); guardar(); }
+      };
+      c0.onchange = function (e) { if (e.target.matches('.corr input')) marcar(e.target.closest('.corr'), e.target.value); };
+      $('corrGuardar').onclick = guardar;
+      estado();
+      if (S.corrSeguir) { S.corrSeguir = false; var p1 = c0.querySelector('.corr.pend'); if (p1) p1.scrollIntoView({ block: 'center' }); else { c0.scrollIntoView(); AVISO('¡Todo corregido!'); } }
     }).catch(function (e) { c0.innerHTML = '<p class="error">' + esc(e.message) + '</p>'; });
   }
-
   /* ---------- Banco de exámenes ---------- */
   function banco() {
     cargando('Abriendo el banco de exámenes…');
@@ -1157,7 +1180,7 @@
     var P = [
       ['examen', 'Crear un examen', ['Exámenes ▸ <b>Nuevo examen</b> (o Banco ▸ <b>Usar en mi curso</b>).', 'Datos: título, curso, materia, minutos y, si quieres, la hora en que abre y cierra.', 'Preguntas: agrégalas una a una o pégalas todas con <b>Pegar preguntas</b> (la correcta lleva *).', 'Restricciones: elige un atajo (Estricto, Con avisos, Práctica, Libre) o ajusta cada regla.', '<b>Guardar</b>: obtienes el código, el enlace y el QR.']],
       ['qr', 'Aplicarlo en el aula', ['Proyecta el QR o escribe el código en la pizarra.', 'El estudiante abre la página, escribe el código y elige su nombre.', 'En Resultados pulsa <b>Ver en vivo</b>: ves quién está dentro, cuánto lleva y quién salió.', 'Si a alguien se le va el internet, usa el reloj ⏱ para darle más minutos.']],
-      ['corregir', 'Corregir respuestas cortas', ['Las respuestas cortas quedan <b>por corregir</b>: la nota del estudiante es provisional.', 'Resultados ▸ pestaña <b>Por corregir</b>: ves la misma pregunta de todo el curso.', 'Toca 0, la mitad o el puntaje completo (o escribe el número) y pulsa <b>Guardar correcciones</b>.', 'La nota se recalcula sola.']],
+      ['corregir', 'Corregir respuestas cortas', ['Las respuestas cortas que coinciden con una respuesta aceptada se califican solas (sin importar mayúsculas, tildes, signos ni «el/la»). Las demás quedan <b>por corregir</b>: la nota del estudiante es provisional.', 'Resultados ▸ pestaña <b>Por corregir</b>: ves la misma pregunta de todo el curso.', 'Toca 0, la mitad o el puntaje completo (o escribe el número) y pulsa <b>Guardar y seguir</b>, o <b>Aceptar todas las sugerencias</b>.', 'La nota se recalcula sola.']],
       ['grafica', 'Resultados, Excel y PDF', ['En cada examen: <b>Excel</b> (notas y análisis por pregunta) o <b>PDF</b> (lista para imprimir o archivar).', 'Reportes ▸ elige el curso: todas tus notas del curso en una tabla, en Excel o PDF.', 'La pestaña Preguntas te dice qué temas repasar: las primeras son las más falladas.']],
       ['banco', 'Banco de exámenes', ['<b>Modelos</b>: exámenes listos de cada materia, académica y técnica.', '<b>Referencia</b>: los que tus colegas comparten (en Datos ▸ «Compartir en el banco»).', 'Filtra por Académico, Técnico o Mis materias. «Usar en mi curso» crea tu copia para editar.']],
       ['imprimir', 'Versión en papel', ['Editar ▸ Compartir ▸ <b>Versión en papel (PDF)</b>: el examen listo para imprimir y, al final, la clave.']],
