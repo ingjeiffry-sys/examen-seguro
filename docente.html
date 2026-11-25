@@ -522,7 +522,8 @@
       var c = cursoDe(e), g = e.grupo || '';
       if (!g && c && claveCurso(c) !== claveCurso(e.curso)) {   // lo que sobra del nombre viejo es el grupo: «ADSI 4to A · Recuperación RA2» → «Recuperación RA2»
         var partes = String(e.curso).split(/\s*[·|\-–—:]\s*/).filter(Boolean);
-        g = partes.length > 1 ? partes.slice(1).join(' · ') : String(e.curso).replace(new RegExp(reCurso(c).source.replace('(^|[^a-z0-9])', '').replace('($|[^a-z0-9])', ''), 'i'), '').trim();
+        var sinCurso = function (s) { return String(s).replace(new RegExp(reCurso(c).source.replace('(^|[^a-z0-9])', '').replace('($|[^a-z0-9])', ''), 'i'), '').trim(); };
+        g = [sinCurso(partes[0] || '')].concat(partes.slice(1)).filter(Boolean).join(' · ');   // «TD 4to A · Recuperación RA2» → «TD · Recuperación RA2» (no se mezcla con ADSI)
       }
       return { id: e.id, titulo: e.titulo, de: e.curso, curso: c, grupo: g, carpeta: e.carpeta || '' };
     });
