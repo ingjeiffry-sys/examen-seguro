@@ -54,6 +54,10 @@
   .kpi { padding: 16px 18px; display: flex; gap: 12px; align-items: center; }
   .kpi b { display: block; font-size: 24px; letter-spacing: -.03em; line-height: 1.1; } .kpi span { font-size: 13px; color: var(--suave); }
   .rejilla { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .examen-t { position: relative; } .examen-t .sel { position: absolute; top: 14px; right: 14px; width: 20px; height: 20px; accent-color: var(--marca); }
+  .examen-t.elegido { outline: 3px solid var(--marca); }
+  .barra-sel { position: sticky; bottom: 12px; z-index: 5; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 14px; margin-top: 14px; }
+  .org-t td { vertical-align: top; } .org-t .entrada { min-width: 110px; padding: 7px 9px; font-size: 13px; }
   .examen-t { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
   .examen-t .franja { height: 6px; background: var(--marca); } .examen-t.practica .franja { background: var(--marca-2); }
   .examen-t .cuerpo { padding: 16px 18px; flex: 1; }
@@ -417,10 +421,12 @@
   }
   function tarjetaExamen(e) {
     var prac = e.modo === 'PRACTICA';
-    return '<article class="tarjeta examen-t' + (prac ? ' practica' : '') + '"><div class="franja"></div><div class="cuerpo">' +
+    return '<article class="tarjeta examen-t' + (prac ? ' practica' : '') + (S.selec && S.selec[e.id] ? ' elegido' : '') + '"><div class="franja"></div><div class="cuerpo">' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' + estadoExamen(e) + '<span class="pildora">' + (prac ? ICO('libro') + ' Práctica' : ICO('candado') + ' Examen') + '</span><span class="pildora">' + esc(e.codigo) + '</span>' +
-      (e.porCorregir ? '<span class="pildora amarillo">' + ICO('corregir') + ' ' + e.porCorregir + ' por corregir</span>' : '') + (e.compartido ? '<span class="pildora azul">' + ICO('banco') + ' En el banco</span>' : '') + '</div>' +
-      '<h3>' + esc(e.titulo) + '</h3><div class="suave pequeno">' + esc([e.curso, e.materia].filter(Boolean).join(' · ')) + (S.yo.rol === 'ADMIN' && e.docente ? ' · ' + esc(e.docente) : '') + '</div>' +
+      (e.porCorregir ? '<span class="pildora amarillo">' + ICO('corregir') + ' ' + e.porCorregir + ' por corregir</span>' : '') + (e.compartido ? '<span class="pildora azul">' + ICO('banco') + ' En el banco</span>' : '') +
+      (e.carpeta ? '<span class="pildora morado">' + ICO('libro') + ' ' + esc(e.carpeta) + '</span>' : '') + (e.origen === 'IA' ? '<span class="pildora azul" title="Lo creó una IA conectada">IA</span>' : '') + (sinOrganizar(e) ? '<span class="pildora amarillo" title="El curso no está en tu lista o falta ordenarlo">Sin organizar</span>' : '') + '</div>' +
+      (S.selec ? '<input type="checkbox" class="sel" data-sel="' + esc(e.id) + '"' + (S.selec[e.id] ? ' checked' : '') + ' aria-label="Elegir">' : '') +
+      '<h3>' + esc(e.titulo) + '</h3><div class="suave pequeno">' + esc([e.curso + (e.grupo ? ' (' + e.grupo + ')' : ''), e.materia].filter(Boolean).join(' · ')) + (S.yo.rol === 'ADMIN' && e.docente ? ' · ' + esc(e.docente) : '') + '</div>' +
       '<div class="metricas"><div><b>' + e.nPreguntas + '</b><span>preguntas</span></div><div><b>' + e.entregados + (e.estudiantes ? '/' + e.estudiantes : '') + '</b><span>entregas</span></div><div><b>' + (e.promedio === null ? '—' : e.promedio) + '</b><span>promedio</span></div></div></div>' +
       '<div class="acciones"><button class="btn fantasma mini" data-res="' + e.id + '">' + ICO('grafica') + ' Resultados</button><button class="btn fantasma mini" data-ed="' + e.id + '">' + ICO('editar') + ' Editar</button>' +
       '<button class="btn fantasma mini" data-comp="' + e.id + '">' + ICO('qr') + '</button><button class="btn fantasma mini" data-dup="' + e.id + '" title="Duplicar">' + ICO('copiar') + '</button></div></article>';
@@ -435,21 +441,113 @@
   });
 
   /* ---------- Exámenes ---------- */
+  /* Cursos: «4to A», «4toA» y «ADSI 4to A · Recuperación RA2» son el mismo 4toA */
+  function claveCurso(c) { return String(c || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ''); }
+  function reCurso(c) { var k = claveCurso(c).replace(/[^a-z0-9]/g, ''); return k ? new RegExp('(^|[^a-z0-9])' + k.split('').join('\\s*') + '($|[^a-z0-9])') : null; }
+  function cursosReales() {
+    if (S._reales && S._reales.p === S.panel) return S._reales.l;
+    var todos = S.panel.cursos, l = todos.filter(function (c) {   // fuera las listas que contienen otro curso (ej. «ADSI 4to A · Recuperación RA2»)
+      var t = String(c).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      return !todos.some(function (o) { return o !== c && claveCurso(o).length < claveCurso(c).length && reCurso(o) && reCurso(o).test(t); });
+    });
+    S._reales = { p: S.panel, l: l }; return l;
+  }
+  function cursoDe(e) {
+    var t = String(e.curso || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(), l = cursosReales();
+    return l.filter(function (c) { return claveCurso(c) === claveCurso(e.curso); })[0] || l.filter(function (c) { var r = reCurso(c); return r && r.test(t); })[0] || '';
+  }
+  function sinOrganizar(e) { return !cursosReales().some(function (c) { return claveCurso(c) === claveCurso(e.curso); }) || (e.origen === 'IA' && !e.carpeta); }
+  function carpetas() { var v = {}; S.panel.examenes.forEach(function (e) { if (e.carpeta) v[e.carpeta] = 1; }); return Object.keys(v).sort(function (a, b) { return a.localeCompare(b, 'es'); }); }
+
   function examenes() {
-    var p = S.panel;
-    $('pagina').innerHTML = cabeza('Exámenes', p.examenes.length + ' en total', '<button class="btn primario" data-nuevo>' + ICO('mas') + ' Nuevo examen</button>') +
-      '<div class="filtros"><label class="buscar">' + ICO('buscar') + '<input class="entrada" id="fBuscar" placeholder="Buscar por título, materia o código"></label>' +
-      '<select class="entrada" id="fCurso"><option value="">Todos los cursos</option>' + p.cursos.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('') + '</select>' +
-      '<div class="segmento" id="fModo"><button class="on" data-m="">Todos</button><button data-m="EXAMEN">Exámenes</button><button data-m="PRACTICA">Prácticas</button></div></div><div id="lista"></div>';
-    var modo = '';
-    function pintar() {
-      var q = $('fBuscar').value.toLowerCase(), c = $('fCurso').value;
-      var l = p.examenes.filter(function (e) { return (!c || e.curso === c) && (!modo || e.modo === modo) && (!q || (e.titulo + ' ' + e.materia + ' ' + e.codigo).toLowerCase().indexOf(q) >= 0); });
-      $('lista').innerHTML = l.length ? '<div class="rejilla">' + l.map(tarjetaExamen).join('') + '</div>' : '<div class="tarjeta vacio"><div class="chip-ico">' + ICO('buscar') + '</div><p>No hay exámenes con ese filtro.</p></div>';
+    S.selec = null; var p = S.panel, F = { q: '', curso: '', materia: '', carpeta: '', estado: '', modo: '', sinOrg: false };
+    try { Object.assign(F, JSON.parse(localStorage.getItem('es-filtros') || '{}'), { q: '', sinOrg: false }); } catch (er) {}
+    var mats = {}; p.examenes.forEach(function (e) { if (e.materia) mats[e.materia] = 1; });
+    var nSin = p.examenes.filter(sinOrganizar).length, opt = function (l, v, todos) { return '<option value="">' + todos + '</option>' + l.map(function (x) { return '<option' + (x === v ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join(''); };
+    $('pagina').innerHTML = cabeza('Exámenes', p.examenes.length + ' en total', (nSin ? '<button class="btn claro" id="fOrganizar">' + ICO('ajustes') + ' Organizar (' + nSin + ')</button>' : '') +
+        '<button class="btn claro" id="fElegir">' + ICO('check') + ' Elegir varios</button><button class="btn primario" data-nuevo>' + ICO('mas') + ' Nuevo examen</button>') +
+      '<div class="filtros"><label class="buscar">' + ICO('buscar') + '<input class="entrada" id="fBuscar" placeholder="Buscar por título, materia, código o carpeta"></label>' +
+      '<select class="entrada" id="fCurso">' + opt(cursosReales(), F.curso, 'Todos los cursos') + '</select>' +
+      '<select class="entrada" id="fMateria">' + opt(Object.keys(mats).sort(), F.materia, 'Todas las materias') + '</select>' +
+      '<select class="entrada" id="fCarpeta">' + opt(carpetas(), F.carpeta, 'Todas las carpetas') + '<option value="__sin"' + (F.carpeta === '__sin' ? ' selected' : '') + '>Sin carpeta</option></select>' +
+      '<select class="entrada" id="fEstado"><option value="">Activos y borradores</option><option value="A"' + (F.estado === 'A' ? ' selected' : '') + '>Solo activos</option><option value="B"' + (F.estado === 'B' ? ' selected' : '') + '>Solo borradores</option></select>' +
+      '<div class="segmento" id="fModo"><button data-m="">Todos</button><button data-m="EXAMEN">Exámenes</button><button data-m="PRACTICA">Prácticas</button></div>' +
+      (nSin ? '<button class="btn fantasma mini" id="fSin">Sin organizar (' + nSin + ')</button>' : '') + '<button class="btn fantasma mini" id="fLimpiar">Quitar filtros</button></div>' +
+      '<div id="lista"></div><div id="barraSel"></div>';
+    function guardarF() { try { localStorage.setItem('es-filtros', JSON.stringify({ curso: F.curso, materia: F.materia, carpeta: F.carpeta, estado: F.estado, modo: F.modo })); } catch (er) {} }
+    function visibles() {
+      var q = F.q.toLowerCase();
+      return p.examenes.filter(function (e) {
+        return (!F.curso || claveCurso(cursoDe(e)) === claveCurso(F.curso)) && (!F.materia || e.materia === F.materia) &&
+          (!F.carpeta || (F.carpeta === '__sin' ? !e.carpeta : e.carpeta === F.carpeta)) && (!F.estado || (F.estado === 'A') === !!e.activo) &&
+          (!F.modo || e.modo === F.modo) && (!F.sinOrg || sinOrganizar(e)) && (!q || (e.titulo + ' ' + e.materia + ' ' + e.codigo + ' ' + e.carpeta + ' ' + e.curso + ' ' + e.grupo).toLowerCase().indexOf(q) >= 0);
+      });
     }
-    $('fBuscar').oninput = pintar; $('fCurso').onchange = pintar;
-    $('fModo').onclick = function (e) { var b = e.target.closest('[data-m]'); if (!b) return; modo = b.dataset.m; this.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); }); pintar(); };
-    pintar();
+    function pintar() {
+      var l = visibles();
+      document.querySelectorAll('#fModo button').forEach(function (x) { x.classList.toggle('on', x.dataset.m === F.modo); });
+      if ($('fSin')) $('fSin').classList.toggle('on', F.sinOrg);
+      $('lista').innerHTML = l.length ? '<div class="rejilla">' + l.map(tarjetaExamen).join('') + '</div>' : '<div class="tarjeta vacio"><div class="chip-ico">' + ICO('buscar') + '</div><p>No hay exámenes con ese filtro.</p></div>';
+      var n = S.selec ? Object.keys(S.selec).length : 0;
+      $('barraSel').innerHTML = S.selec ? '<div class="tarjeta barra-sel"><b>' + n + ' elegidos</b><button class="btn fantasma mini" id="sTodos">Elegir los ' + l.length + ' visibles</button>' +
+        '<input class="entrada" id="sCarpeta" list="dlCarpetas" placeholder="Carpeta (vacío = sin carpeta)" style="max-width:240px"><datalist id="dlCarpetas">' + carpetas().map(function (c) { return '<option value="' + esc(c) + '">'; }).join('') + '</datalist>' +
+        '<button class="btn primario mini" id="sMover"' + (n ? '' : ' disabled') + '>Mover a la carpeta</button><button class="btn claro mini" id="sOrg"' + (n ? '' : ' disabled') + '>Organizar los elegidos</button><button class="btn fantasma mini" id="sCerrar">Terminar</button></div>' : '';
+    }
+    $('fBuscar').oninput = function () { F.q = this.value; pintar(); };
+    [['fCurso', 'curso'], ['fMateria', 'materia'], ['fCarpeta', 'carpeta'], ['fEstado', 'estado']].forEach(function (x) { $(x[0]).onchange = function () { F[x[1]] = this.value; guardarF(); pintar(); }; });
+    $('fModo').onclick = function (e) { var b = e.target.closest('[data-m]'); if (!b) return; F.modo = b.dataset.m; guardarF(); pintar(); };
+    if ($('fSin')) $('fSin').onclick = function () { F.sinOrg = !F.sinOrg; pintar(); };
+    $('fLimpiar').onclick = function () { F = { q: '', curso: '', materia: '', carpeta: '', estado: '', modo: '', sinOrg: false }; guardarF(); examenes(); };
+    if ($('fOrganizar')) $('fOrganizar').onclick = function () { organizar(p.examenes.filter(sinOrganizar)); };
+    $('fElegir').onclick = function () { S.selec = S.selec ? null : {}; pintar(); };
+    $('lista').onchange = function (e) { var c = e.target.closest('[data-sel]'); if (!c) return; if (c.checked) S.selec[c.dataset.sel] = 1; else delete S.selec[c.dataset.sel]; pintar(); };
+    $('barraSel').onclick = function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      if (b.id === 'sTodos') { visibles().forEach(function (x) { S.selec[x.id] = 1; }); pintar(); }
+      if (b.id === 'sCerrar') { S.selec = null; pintar(); }
+      if (b.id === 'sOrg') organizar(p.examenes.filter(function (x) { return S.selec[x.id]; }));
+      if (b.id === 'sMover') {
+        var ids = Object.keys(S.selec), c = $('sCarpeta').value.trim(); b.disabled = true;
+        A({ action: 'moverExamenes', ids: ids, carpeta: c }).then(function (r) { AVISO(r.movidos + ' movidos ' + (c ? 'a «' + c + '»' : 'fuera de las carpetas')); S.selec = null; return refrescarPanel(); }).then(examenes).catch(function (er) { b.disabled = false; AVISO(er.message, 'error'); });
+      }
+    };
+    F.modo = F.modo || ''; pintar();
+  }
+
+  /* Asistente «Organizar»: propone curso real, grupo y carpeta; primero simula y luego aplica */
+  function organizar(lista) {
+    if (!lista.length) { AVISO('No hay exámenes para organizar.'); return; }
+    var reales = cursosReales();
+    var filas = lista.map(function (e) {
+      var c = cursoDe(e), g = e.grupo || '';
+      if (!g && c && claveCurso(c) !== claveCurso(e.curso)) {   // lo que sobra del nombre viejo es el grupo: «ADSI 4to A · Recuperación RA2» → «Recuperación RA2»
+        var partes = String(e.curso).split(/\s*[·|\-–—:]\s*/).filter(Boolean);
+        g = partes.length > 1 ? partes.slice(1).join(' · ') : String(e.curso).replace(new RegExp(reCurso(c).source.replace('(^|[^a-z0-9])', '').replace('($|[^a-z0-9])', ''), 'i'), '').trim();
+      }
+      return { id: e.id, titulo: e.titulo, de: e.curso, curso: c, grupo: g, carpeta: e.carpeta || '' };
+    });
+    var dl = '<datalist id="dlCarp2">' + carpetas().map(function (c) { return '<option value="' + esc(c) + '">'; }).join('') + '</datalist>';
+    modal('<h2>' + ICO('ajustes') + ' Organizar exámenes</h2><p class="suave pequeno">Cada examen pasa a su <b>curso real</b>. Si el nombre traía algo más (ej. «Recuperación RA2»), eso se vuelve un <b>grupo</b> dentro del curso: el examen mostrará solo a esos estudiantes, como antes. Las notas e intentos no cambian. Primero se simula.</p>' + dl +
+      '<div class="desliza" style="max-height:52vh"><table class="tabla org-t"><thead><tr><th>Examen</th><th>Ahora</th><th>Curso</th><th>Grupo (opcional)</th><th>Carpeta (opcional)</th></tr></thead><tbody>' + filas.map(function (r, i) {
+        return '<tr><td><b>' + esc(r.titulo) + '</b></td><td class="pequeno suave">' + esc(r.de) + '</td><td><select class="entrada" data-o="curso" data-i="' + i + '"><option value="">Elegir…</option>' +
+          reales.map(function (c) { return '<option' + (c === r.curso ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></td>' +
+          '<td><input class="entrada" data-o="grupo" data-i="' + i + '" value="' + esc(r.grupo) + '" placeholder="Todo el curso"></td><td><input class="entrada" data-o="carpeta" data-i="' + i + '" list="dlCarp2" value="' + esc(r.carpeta) + '"></td></tr>';
+      }).join('') + '</tbody></table></div><div id="orgRes" class="pequeno" style="margin-top:10px"></div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px"><button class="btn claro" data-cerrar>Cerrar</button><button class="btn claro" id="orgSim">Simular</button><button class="btn primario" id="orgOk" disabled>Aplicar</button></div>', true);
+    function leer() { document.querySelectorAll('[data-o]').forEach(function (el) { filas[el.dataset.i][el.dataset.o] = el.value.trim(); }); return filas.filter(function (r) { return r.curso; }).map(function (r) { return { id: r.id, curso: r.curso, grupo: r.grupo, carpeta: r.carpeta }; }); }
+    $('modalCaja').oninput = function () { $('orgOk').disabled = true; };
+    $('orgSim').onclick = function () {
+      var c = leer(); if (!c.length) { $('orgRes').innerHTML = '<span class="error">Elige el curso de al menos un examen.</span>'; return; }
+      $('orgRes').textContent = 'Simulando…';
+      A({ action: 'organizarExamenes', cambios: c, simular: true }).then(function (r) {
+        $('orgRes').innerHTML = '<b>Simulación:</b> ' + r.examenes + ' exámenes cambian de curso · ' + r.marcados + ' estudiantes quedan en su grupo · ' + r.agregados + ' se agregan al curso real (no estaban en su lista; conservan su PIN) · ' + r.listasCerradas + ' listas viejas se cierran.' + (filas.length > c.length ? ' <span class="suave">(' + (filas.length - c.length) + ' sin curso no se tocan)</span>' : '');
+        $('orgOk').disabled = false;
+      }).catch(function (er) { $('orgRes').innerHTML = '<span class="error">' + esc(er.message) + '</span>'; });
+    };
+    $('orgOk').onclick = function () {
+      this.disabled = true;
+      A({ action: 'organizarExamenes', cambios: leer() }).then(function (r) { cerrarModal(); AVISO(r.examenes + ' exámenes organizados'); S.selec = null; return refrescarPanel(); }).then(function () { if (S.vista === 'examenes') examenes(); }).catch(function (er) { AVISO(er.message, 'error'); });
+    };
   }
 
   /* ---------- Editor ---------- */
@@ -485,7 +583,7 @@
       var x = r.examen;
       E = { paso: paso, ex: { id: x.id, titulo: x.titulo, materia: x.materia || '', curso: x.curso, modo: x.modo === 'PRACTICA' ? 'PRACTICA' : 'EXAMEN', minutos: Number(x.minutos) || 0, preguntas: Number(x.preguntas) || 0,
         notaMinima: Number(x.notaMinima) || 70, inicio: (x.inicio || '').replace(' ', 'T').slice(0, 16), fin: (x.fin || '').replace(' ', 'T').slice(0, 16), instrucciones: x.instrucciones || '',
-        activo: !/^no$/i.test(String(x.activo)), codigo: x.codigo, reglas: x.reglas, multiBanco: String(x.banco || '').indexOf(',') >= 0, compartido: !!x.compartido }, preguntas: r.preguntas };
+        activo: !/^no$/i.test(String(x.activo)), codigo: x.codigo, reglas: x.reglas, grupo: x.grupo || '', carpeta: x.carpeta || '', multiBanco: String(x.banco || '').indexOf(',') >= 0, compartido: !!x.compartido }, preguntas: r.preguntas };
       if (x.soloVer) { AVISO('Ese examen es de otro docente. Úsalo desde el Banco.', 'error'); ir('banco'); return; }
       pintarEditor();
     }).catch(function (e) { AVISO(e.message, 'error'); ir('examenes'); });
@@ -504,7 +602,7 @@
   }
   function leerPaso() {
     if (E.paso === 'datos') {
-      ['titulo', 'materia', 'curso', 'instrucciones', 'inicio', 'fin'].forEach(function (k) { var el = $('ed_' + k); if (el) E.ex[k] = el.value; });
+      ['titulo', 'materia', 'curso', 'instrucciones', 'inicio', 'fin', 'grupo', 'carpeta'].forEach(function (k) { var el = $('ed_' + k); if (el) E.ex[k] = el.value; });
       ['minutos', 'preguntas', 'notaMinima'].forEach(function (k) { var el = $('ed_' + k); if (el) E.ex[k] = Number(el.value) || 0; });
       if ($('ed_materiaOtra') && E.ex.materia === '__otra') E.ex.materia = $('ed_materiaOtra').value.trim();
     }
@@ -515,9 +613,11 @@
     var matOpts = mats.slice(); if (x.materia && mats.indexOf(x.materia) < 0) matOpts.push(x.materia);
     $('edCuerpo').innerHTML = '<div class="tarjeta">' +
       '<label class="campo"><span>Título</span><input class="entrada" id="ed_titulo" maxlength="140" placeholder="Ej.: Examen final RA03 · Protección de dispositivos" value="' + esc(x.titulo) + '"></label>' +
-      '<div class="fila"><label class="campo"><span>Curso</span><select class="entrada" id="ed_curso">' + S.panel.cursos.map(function (c) { return '<option' + (c === x.curso ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></label>' +
+      '<div class="fila"><label class="campo"><span>Curso</span><select class="entrada" id="ed_curso">' + S.panel.cursos.concat(x.curso && S.panel.cursos.indexOf(x.curso) < 0 ? [x.curso] : []).map(function (c) { return '<option' + (c === x.curso ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></label>' +
       '<label class="campo"><span>Materia</span><select class="entrada" id="ed_materia">' + matOpts.map(function (m) { return '<option' + (m === x.materia ? ' selected' : '') + '>' + esc(m) + '</option>'; }).join('') + '<option value="__otra">Otra…</option></select>' +
       '<input class="entrada oculto" id="ed_materiaOtra" placeholder="Escribe la materia" style="margin-top:6px"></label></div>' +
+      '<div class="fila"><label class="campo"><span>Grupo del curso (opcional)</span><select class="entrada" id="ed_grupo"><option value="">Todo el curso</option>' + (x.grupo ? '<option selected>' + esc(x.grupo) + '</option>' : '') + '</select><small class="suave">Solo esos estudiantes verán su nombre al entrar. Los grupos se arman en Estudiantes.</small></label>' +
+      '<label class="campo"><span>Carpeta (opcional)</span><input class="entrada" id="ed_carpeta" list="dlCarpEd" maxlength="60" placeholder="Ej.: Período 1, Recuperaciones" value="' + esc(x.carpeta || '') + '"><datalist id="dlCarpEd">' + carpetas().map(function (c) { return '<option value="' + esc(c) + '">'; }).join('') + '</datalist></label></div>' +
       '<label class="campo"><span>Tipo</span><div class="segmento" id="ed_modo"><button type="button" data-m="EXAMEN" class="' + (x.modo === 'EXAMEN' ? 'on' : '') + '">' + ICO('candado') + ' Examen</button><button type="button" data-m="PRACTICA" class="' + (x.modo === 'PRACTICA' ? 'on' : '') + '">' + ICO('libro') + ' Práctica / quiz</button></div></label>' +
       '<div class="fila"><label class="campo"><span>Minutos (0 = sin límite)</span><input class="entrada" type="number" min="0" id="ed_minutos" value="' + x.minutos + '"></label>' +
       '<label class="campo"><span>Preguntas a mostrar (0 = todas)</span><input class="entrada" type="number" min="0" id="ed_preguntas" value="' + x.preguntas + '"></label>' +
@@ -527,7 +627,11 @@
       '<label class="campo"><span>Indicaciones para el estudiante</span><textarea class="entrada" id="ed_instrucciones" maxlength="600" placeholder="Ej.: Lee con calma. Una sola respuesta correcta en cada pregunta.">' + esc(x.instrucciones) + '</textarea></label>' +
       '<div class="regla-ed"><span class="chip-ico verde">' + ICO('check') + '</span><div class="txt"><b>Examen activo</b><span class="d">Si lo apagas, el código deja de funcionar.</span></div><label class="interruptor"><input type="checkbox" id="ed_activo"' + (x.activo ? ' checked' : '') + '><i></i></label></div>' +
       '<div class="regla-ed"><span class="chip-ico azul">' + ICO('banco') + '</span><div class="txt"><b>Compartir en el banco de exámenes</b><span class="d">Tus colegas lo verán como examen de referencia y podrán copiarlo a sus cursos (no ven las notas de tus estudiantes).</span></div><label class="interruptor"><input type="checkbox" id="ed_compartido"' + (x.compartido ? ' checked' : '') + '><i></i></label></div></div>';
-    $('ed_curso').onchange = function () { leerPaso(); E.ex.curso = this.value; E.ex.materia = ''; pasoDatos(); };
+    $('ed_curso').onchange = function () { leerPaso(); E.ex.curso = this.value; E.ex.materia = ''; E.ex.grupo = ''; pasoDatos(); };
+    if (x.curso) A({ action: 'estudiantes', curso: x.curso }).then(function (r) {   // grupos de ese curso
+      var sel = $('ed_grupo'); if (!sel || E.ex.curso !== x.curso) return;
+      sel.innerHTML = '<option value="">Todo el curso</option>' + (r.grupos || []).concat(x.grupo && (r.grupos || []).indexOf(x.grupo) < 0 ? [x.grupo] : []).map(function (g) { return '<option' + (g === x.grupo ? ' selected' : '') + '>' + esc(g) + '</option>'; }).join('');
+    }).catch(function () {});
     $('ed_materia').onchange = function () { $('ed_materiaOtra').classList.toggle('oculto', this.value !== '__otra'); };
     if (!matOpts.length) { $('ed_materia').value = '__otra'; $('ed_materiaOtra').classList.remove('oculto'); }
     $('ed_activo').onchange = function () { E.ex.activo = this.checked; };
@@ -869,7 +973,7 @@
     if (malas.length) { E.paso = 'preguntas'; pintarEditor(); AVISO('Revisa la pregunta ' + malas[0], 'error'); return; }
     $('edGuardar').disabled = true; $('edEstado').textContent = 'Guardando…';
     var datos = { action: 'guardarExamen', examen: { id: x.id, titulo: x.titulo, materia: x.materia, curso: x.curso, modo: x.modo, minutos: x.minutos, preguntas: x.preguntas, notaMinima: x.notaMinima,
-      inicio: x.inicio, fin: x.fin, instrucciones: x.instrucciones, activo: x.activo, reglas: x.reglas, compartido: !!x.compartido },
+      inicio: x.inicio, fin: x.fin, instrucciones: x.instrucciones, activo: x.activo, reglas: x.reglas, compartido: !!x.compartido, grupo: x.grupo || '', carpeta: x.carpeta || '' },
       preguntas: E.preguntas.map(function (q) { return { id: q.id || '', tipo: q.tipo, enunciado: q.enunciado, opciones: q.tipo === 'CORTA' ? [] : q.opciones.filter(function (o) { return o.trim(); }), correcta: q.correcta, puntos: q.puntos, explicacion: q.explicacion, tema: q.tema, media: q.media || '' }; }) };
     A(datos).then(function (r) {
       var nuevo = !x.id; x.id = r.id; x.codigo = r.codigo; x.multiBanco = false;
@@ -1199,7 +1303,8 @@
     var cursos = S.panel.cursos;
     $('pagina').innerHTML = cabeza('Estudiantes', 'Las listas que ven tus estudiantes al entrar a un examen.') +
       '<div class="filtros"><select class="entrada" id="eCurso">' + cursos.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('') + '</select><span class="suave pequeno" id="eCuenta"></span>' +
-      '<button class="btn claro" id="eTarjetas" title="Imprime una tarjeta por estudiante con su PIN para entrar a los exámenes">' + ICO('imprimir') + ' Tarjetas de PIN</button></div>' +
+      '<button class="btn claro" id="eTarjetas" title="Imprime una tarjeta por estudiante con su PIN para entrar a los exámenes">' + ICO('imprimir') + ' Tarjetas de PIN</button>' +
+      '<button class="btn claro" id="eGrupos" title="Sublistas del curso: recuperación, avanzados…">' + ICO('usuarios') + ' Grupos</button></div><div id="eGruposL" class="chips-n" style="margin:-4px 0 12px"></div>' +
       '<div class="dos"><div class="tarjeta desliza" id="eLista"></div><div class="tarjeta"><h3>' + ICO('mas') + ' Agregar estudiantes</h3><p class="suave pequeno">Pega los nombres, uno por línea (puedes copiarlos de Excel).</p>' +
       '<textarea class="entrada" id="ePegar" style="min-height:180px" placeholder="Ana María Pérez\nLuis Gómez"></textarea><button class="btn primario" id="eAgregar" style="margin-top:10px">' + ICO('check') + ' Agregar a la lista</button></div></div>';
     function cargar() {
@@ -1207,15 +1312,32 @@
       $('eLista').innerHTML = '<div class="girar" style="margin:20px auto"></div>';
       A({ action: 'estudiantes', curso: c }).then(function (r) {
         lista = r.estudiantes;
-        $('eCuenta').textContent = r.estudiantes.filter(function (s) { return s.activo; }).length + ' activos';
+        $('eCuenta').textContent = r.estudiantes.filter(function (s) { return s.activo; }).length + ' activos'; grupos = r.grupos || [];
+        $('eGruposL').innerHTML = grupos.map(function (g) { return '<button class="pildora morado" data-grupo="' + esc(g) + '">' + ICO('usuarios') + ' ' + esc(g) + ' · ' + r.estudiantes.filter(function (s) { return (s.grupos || []).indexOf(g) >= 0; }).length + '</button>'; }).join('');
         $('eLista').innerHTML = r.estudiantes.length ? '<table class="tabla lista-est"><thead><tr><th>#</th><th>Nombre</th><th>PIN</th><th>En la lista</th></tr></thead><tbody>' + r.estudiantes.map(function (s, i) {
-          return '<tr><td class="tenue">' + (i + 1) + '</td><td>' + esc(s.nombre) + '</td><td><code>' + esc(s.pin || '—') + '</code> <button class="btn fantasma mini" data-pin="' + esc(s.id) + '" title="Darle un PIN nuevo (si lo perdió o alguien más lo vio)">' + ICO('recargar') + '</button></td>' +
+          return '<tr><td class="tenue">' + (i + 1) + '</td><td>' + esc(s.nombre) + (s.grupos || []).map(function (g) { return ' <span class="pildora morado" style="font-size:11px;padding:1px 7px">' + esc(g) + '</span>'; }).join('') + '</td><td><code>' + esc(s.pin || '—') + '</code> <button class="btn fantasma mini" data-pin="' + esc(s.id) + '" title="Darle un PIN nuevo (si lo perdió o alguien más lo vio)">' + ICO('recargar') + '</button></td>' +
             '<td><label class="interruptor"><input type="checkbox" data-est="' + esc(s.id) + '"' + (s.activo ? ' checked' : '') + '><i></i></label></td></tr>'; }).join('') + '</tbody></table>'
           : '<div class="vacio"><p>Este curso todavía no tiene lista.</p></div>';
       }).catch(function (e) { $('eLista').innerHTML = '<p class="error">' + esc(e.message) + '</p>'; });
     }
-    var lista = [];
+    var lista = [], grupos = [];
     $('eCurso').onchange = cargar;
+    function editarGrupo(g) {
+      var act = lista.filter(function (s) { return s.activo; });
+      modal('<h2>' + ICO('usuarios') + ' ' + (g ? 'Grupo «' + esc(g) + '»' : 'Grupo nuevo') + '</h2><p class="suave pequeno">Un grupo es una parte del curso (recuperación, avanzados…). Al elegirlo en un examen, solo esos estudiantes ven su nombre al entrar.</p>' +
+        '<label class="campo"><span>Nombre</span><input class="entrada" id="gNombre" maxlength="60" value="' + esc(g || '') + '" placeholder="Ej.: Recuperación RA2"></label>' +
+        '<div class="desliza" style="max-height:40vh;margin:8px 0">' + act.map(function (s) { return '<label style="display:flex;gap:8px;align-items:center;padding:4px 0"><input type="checkbox" data-gm="' + esc(s.id) + '"' + (g && (s.grupos || []).indexOf(g) >= 0 ? ' checked' : '') + '> ' + esc(s.nombre) + '</label>'; }).join('') + '</div>' +
+        '<div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap">' + (g ? '<button class="btn fantasma" id="gBorrar">Quitar el grupo</button>' : '<span></span>') + '<div style="display:flex;gap:10px"><button class="btn claro" data-cerrar>Cerrar</button><button class="btn primario" id="gOk">' + ICO('check') + ' Guardar</button></div></div>');
+      var c = $('eCurso').value, fin = function (msg) { return function () { cerrarModal(); AVISO(msg); cargar(); }; }, mal = function (er) { AVISO(er.message, 'error'); };
+      $('gOk').onclick = function () {
+        var n = $('gNombre').value.trim(), ids = []; document.querySelectorAll('[data-gm]').forEach(function (x) { if (x.checked) ids.push(x.dataset.gm); });
+        var paso = g && n && n !== g ? A({ action: 'guardarGrupo', curso: c, grupo: g, renombrar: n }) : Promise.resolve();
+        paso.then(function () { return A({ action: 'guardarGrupo', curso: c, grupo: n, ids: ids }); }).then(fin('Grupo guardado')).catch(mal);
+      };
+      if ($('gBorrar')) $('gBorrar').onclick = function () { if (confirm('¿Quitar el grupo «' + g + '»? Los estudiantes siguen en el curso.')) A({ action: 'guardarGrupo', curso: c, grupo: g, borrar: true }).then(fin('Grupo quitado')).catch(mal); };
+    }
+    $('eGrupos').onclick = function () { editarGrupo(''); };
+    $('eGruposL').onclick = function (e) { var b = e.target.closest('[data-grupo]'); if (b) editarGrupo(b.dataset.grupo); };
     $('eLista').onclick = function (e) {
       var b = e.target.closest('[data-pin]'); if (!b) return;
       if (!confirm('¿Darle un PIN nuevo? El anterior deja de servir y tendrás que entregarle el nuevo.')) return;
